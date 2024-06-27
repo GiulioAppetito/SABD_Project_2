@@ -18,13 +18,13 @@ producer = KafkaProducer(
 
 def preprocess_data(row):
     preprocessed_row = {
-        "date": row["date"],
-        "serial_number": row["serial number"],
-        "model": row["model"],
-        "failure": row["failure"],
-        "vault_id": int(row["vault id"]),
-        "power_on_hours": int(row["s9 power on hours"]),
-        "temperature_celsius": int(row["s194 temperature celsius"]) if row["s194 temperature celsius"] else None
+        "date": row[0],
+        "serial_number": row[1],
+        "model": row[2],
+        "failure": row[3],
+        "vault_id": int(row[4]),
+        "power_on_hours": int(row[9]),
+        "temperature_celsius": int(row[32]) if row[32] else None
     }
     return preprocessed_row
 
@@ -35,7 +35,8 @@ def send_to_kafka(row):
 
 def main():
     with open(CSV_FILE_PATH, mode='r') as file:
-        csv_reader = csv.DictReader(file)
+        csv_reader = csv.reader(file)
+        header = next(csv_reader)  # Skip the header row
         for row in csv_reader:
             preprocessed_row = preprocess_data(row)
             send_to_kafka(preprocessed_row)
