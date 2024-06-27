@@ -3,7 +3,7 @@ version: '3.8'
 services:
   zookeeper:
     container_name: zookeeper
-    image: 'bitnami/zookeeper:latest'
+    image: bitnami/zookeeper:latest
     ports:
       - '2181:2181'
     environment:
@@ -15,24 +15,20 @@ services:
     ports:
       - "9092:9092"
     environment:
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
 
   flink-jobmanager:
     build:
       context: ./flink/
       dockerfile: jobmanager.dockerfile
-    container_name: flink-jobmanager
+    container_name: jobmanager
     hostname: jobmanager
     ports:
       - "8081:8081"
       - "6123:6123"
-    command: jobmanager
     environment:
-      - |
-        FLINK_PROPERTIES=
-        jobmanager.rpc.address: jobmanager
-    tty: true
+      - JOB_MANAGER_RPC_ADDRESS=jobmanager
     networks:
       - project2-network
 
@@ -40,17 +36,13 @@ services:
     build:
       context: ./flink/
       dockerfile: taskmanager.dockerfile
-    container_name: flink-taskmanager
+    container_name: taskmanager
     hostname: taskmanager
     depends_on:
       - flink-jobmanager
-    command: taskmanager
     environment:
-      - |
-        FLINK_PROPERTIES=
-        jobmanager.rpc.address: jobmanager
-        taskmanager.numberOfTaskSlots: 10
-    tty: true
+      - JOB_MANAGER_RPC_ADDRESS=jobmanager
+      - TASK_MANAGER_NUMBER_OF_TASK_SLOTS=10
     networks:
       - project2-network
 
@@ -60,6 +52,8 @@ services:
     container_name: producer
     depends_on:
       - kafka
+    volumes:
+      - ./producer/src:/home/producer/src
     networks:
       - project2-network
 
