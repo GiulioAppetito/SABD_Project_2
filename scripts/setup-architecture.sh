@@ -2,20 +2,20 @@
 
 # Variables
 DOCKER_NETWORK=project2-network
-DATASET_RELATIVE_PATH=./producer/src/data
 
 usage() {
     echo "Usage:"
     echo "       ./setup-architecture.sh --start: Starts the whole architecture."
     echo "       ./setup-architecture.sh --stop: Stops the whole architecture."
+    echo "       ./setup-architecture.sh --restart: Restarts the whole architecture."
 }
 
-run_docker_compose_up() {
+run_docker_compose() {
     echo "Starting the architecture..."
     docker-compose up -d
 }
 
-run_docker_compose_down() {
+stop_docker_compose() {
     echo "Stopping the architecture..."
     docker-compose down
 }
@@ -25,9 +25,12 @@ execute() {
         usage
         exit 0
     elif [ "$1" = "--start" ]; then
-        run_docker_compose_up
+        run_docker_compose
     elif [ "$1" = "--stop" ]; then
-        run_docker_compose_down
+        stop_docker_compose
+    elif [ "$1" = "--restart" ]; then
+        stop_docker_compose
+        run_docker_compose
     else
         usage
     fi

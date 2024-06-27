@@ -1,6 +1,11 @@
-FROM python:3.8-slim
+FROM python:3.9-slim
+
 WORKDIR /app
-COPY config/requirements.txt requirements.txt
-RUN pip install -r requirements.txt
-COPY src/ .
+
+COPY requirements.txt requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY send_to_kafka.py send_to_kafka.py
+COPY data/ data/
+
 CMD ["python", "producer.py"]

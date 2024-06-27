@@ -12,7 +12,7 @@ RUN pip3 install apache-flink jproperties psquare tdigest
 # Aggiungere dipendenza del connettore Kafka
 RUN curl -o /KafkaConnectorDependencies.jar https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka/1.17.1/flink-sql-connector-kafka-1.17.1.jar
 
-COPY ./src/ /job
+COPY ./src/flink_job.py /opt/flink/usrlib/flink_job.py
 
 # Comando predefinito per avviare il TaskManager
 CMD ["taskmanager"]
