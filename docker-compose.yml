@@ -31,10 +31,10 @@ services:
       - "8082:8082"
     tty: true
     environment:
-      - SINGLE_USER_CREDENTIALS_USERNAME=${SINGLE_USER_CREDENTIALS_USERNAME}
-      - SINGLE_USER_CREDENTIALS_PASSWORD=${SINGLE_USER_CREDENTIALS_PASSWORD}
-      - NIFI_SENSITIVE_PROPS_KEY=${NIFI_SENSITIVE_PROPS_KEY}
-      - NIFI_HOME=/opt/nifi/nifi-current
+      - SINGLE_USER_CREDENTIALS_USERNAME=admin
+        - SINGLE_USER_CREDENTIALS_PASSWORD=${SINGLE_USER_CREDENTIALS_PASSWORD}
+        - NIFI_SENSITIVE_PROPS_KEY=${NIFI_SENSITIVE_PROPS_KEY}
+        - NIFI_HOME=/opt/nifi/nifi-current
     hostname: nifi
     networks:
       - project-network
