@@ -1,22 +1,14 @@
-# Usa l'immagine base di Apache Flink
 FROM apache/flink:latest
 
-# Configurazione di Python
-RUN apt-get update && \
-    apt-get install -y python3 python3-pip && \
-    ln -s /usr/bin/python3 /usr/bin/python
+# Install Python dependencies
+RUN apt-get update && apt-get install -y python3 python3-pip
+RUN pip3 install apache-flink
 
-# Installare le dipendenze
-RUN pip3 install apache-flink jproperties psquare tdigest
-
-# Aggiungere dipendenza del connettore Kafka
-RUN curl -o /KafkaConnectorDependencies.jar https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka/1.17.1/flink-sql-connector-kafka-1.17.1.jar
+# Download Flink Kafka connector
+RUN curl -o /opt/flink/lib/flink-connector-kafka_2.11-1.13.2.jar \
+    https://repo.maven.apache.org/maven2/org/apache/flink/flink-connector-kafka_2.11/1.13.2/flink-connector-kafka_2.11-1.13.2.jar
 
 # Copy the Flink job to the Flink jobmanager
 COPY src/flink_job.py /opt/flink/usrlib/flink_job.py
 
-# Esponi le porte necessarie per il JobManager
-EXPOSE 6123 8081
-
-# Comando predefinito per avviare il JobManager
 CMD ["jobmanager"]
