@@ -27,7 +27,8 @@ services:
     build: ./nifi
     container_name: nifi
     ports:
-      - "8080:8080"
+      - "8443:8443"
+      - "8082:8082"
     tty: true
     environment:
       - SINGLE_USER_CREDENTIALS_USERNAME=${SINGLE_USER_CREDENTIALS_USERNAME}
