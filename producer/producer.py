@@ -7,7 +7,7 @@ import os
 # Configuration
 KAFKA_BROKER = os.getenv('BOOTSTRAP_SERVERS', 'localhost:9092')
 TOPIC_NAME = os.getenv('TOPIC_NAME', 'hdd_events')
-CSV_FILE_PATH = 'app/producer/data/raw_data_medium-utv_sorted.csv'
+CSV_FILE_PATH = '/home/producer/data/raw_data_medium-utv_sorted.csv'
 DELAY = 1  # Delay in seconds between sending each row
 
 # Create a Kafka producer

@@ -30,7 +30,7 @@ services:
     environment:
       - JOB_MANAGER_RPC_ADDRESS=jobmanager
     networks:
-      - project2-network
+      - project2_network
 
   flink-taskmanager:
     build:
@@ -44,7 +44,7 @@ services:
       - JOB_MANAGER_RPC_ADDRESS=jobmanager
       - TASK_MANAGER_NUMBER_OF_TASK_SLOTS=10
     networks:
-      - project2-network
+      - project2_network
 
   producer:
     build:
@@ -53,10 +53,11 @@ services:
     depends_on:
       - kafka
     volumes:
-      - ./producer/data:/app/producer/data
+      - ./producer/src:/home/producer/src
+      - ./producer/data:/home/producer/data
     networks:
-      - project2-network
+      - project2_network
 
 networks:
-  project2-network:
+  project2_network:
     driver: bridge
