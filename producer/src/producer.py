@@ -2,10 +2,11 @@ import csv
 import time
 import json
 from kafka import KafkaProducer
+import os
 
 # Configuration
-KAFKA_BROKER = 'localhost:9092'
-TOPIC_NAME = 'hdd_events'
+KAFKA_BROKER = os.getenv('BOOTSTRAP_SERVERS', 'localhost:9092')
+TOPIC_NAME = os.getenv('TOPIC_NAME', 'hdd_events')
 CSV_FILE_PATH = './data/hdd-smart-data.csv'
 DELAY = 1  # Delay in seconds between sending each row
 
@@ -16,7 +17,6 @@ producer = KafkaProducer(
 )
 
 def preprocess_data(row):
-    # Esegui qui il preprocessing dei dati
     preprocessed_row = {
         "date": row["date"],
         "serial_number": row["serial number"],

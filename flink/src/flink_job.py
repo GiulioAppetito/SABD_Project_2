@@ -1,8 +1,7 @@
 import json
 from pyflink.common.serialization import SimpleStringSchema
 from pyflink.datastream import StreamExecutionEnvironment
-from pyflink.datastream.connectors import FlinkKafkaConsumer
-from pyflink.common.typeinfo import Types
+from pyflink.datastream.connectors.kafka import FlinkKafkaConsumer
 
 def main():
     env = StreamExecutionEnvironment.get_execution_environment()

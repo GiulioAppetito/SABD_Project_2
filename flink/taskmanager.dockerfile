@@ -1,4 +1,4 @@
-FROM flink:latest
+FROM apache/flink:1.13.2-scala_2.11
 
 # Install Python dependencies
 RUN apt-get update && apt-get install -y python3 python3-pip
