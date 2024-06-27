@@ -2,9 +2,10 @@
 FROM bitnami/flink:latest
 
 # Pulire e aggiornare la cache dei pacchetti, quindi installare Python e pip
-RUN apt-get clean && \
-    apt-get update && \
-    apt-get install -y python3 python3-pip
+RUN apt-get update -y
+RUN apt install python3 -y
+RUN apt-get update -y
+RUN apt-get install python3-pip -y
 
 # Install dependencies
 COPY config/requirements.txt /tmp/requirements.txt
