@@ -1,5 +1,5 @@
 # Usa l'immagine base di Apache Flink
-FROM flink:latest
+FROM apache/flink:latest
 
 # Configurazione di Python
 RUN apt-get update && \

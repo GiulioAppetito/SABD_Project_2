@@ -15,7 +15,6 @@ producer = KafkaProducer(
     value_serializer=lambda v: json.dumps(v).encode('utf-8')
 )
 
-
 def preprocess_data(row):
     # Esegui qui il preprocessing dei dati
     preprocessed_row = {
@@ -29,12 +28,10 @@ def preprocess_data(row):
     }
     return preprocessed_row
 
-
 def send_to_kafka(row):
     producer.send(TOPIC_NAME, row)
     producer.flush()
     print(f"Successfully sent data to Kafka: {row}")
-
 
 def main():
     with open(CSV_FILE_PATH, mode='r') as file:
@@ -43,7 +40,6 @@ def main():
             preprocessed_row = preprocess_data(row)
             send_to_kafka(preprocessed_row)
             time.sleep(DELAY)
-
 
 if __name__ == '__main__':
     main()

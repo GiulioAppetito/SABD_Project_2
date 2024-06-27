@@ -66,4 +66,3 @@ services:
 networks:
   project2-network:
     driver: bridge
-    name: project2-network
