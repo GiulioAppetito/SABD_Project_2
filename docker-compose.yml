@@ -53,7 +53,7 @@ services:
     depends_on:
       - kafka
     volumes:
-      - ./producer/src:/home/producer/src
+      - ./producer:/home/producer/src
       - ./producer/data:/home/producer/data
     networks:
       - project2_network
