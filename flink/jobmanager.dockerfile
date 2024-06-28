@@ -1,7 +1,11 @@
 FROM apache/flink:latest
 
 # Install Python dependencies
-RUN apt-get update && apt-get install -y python3 python3-pip
+RUN apt-get update -y
+RUN apt install python3 -y
+RUN apt-get update -y
+RUN apt-get install python3-pip -y
+RUN ln -s /usr/bin/python3 /usr/bin/python
 RUN pip3 install apache-flink
 
 # Download Flink Kafka connector
