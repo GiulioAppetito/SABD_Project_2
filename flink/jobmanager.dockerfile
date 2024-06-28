@@ -1,11 +1,8 @@
-FROM flink:latest
-# Aggiungi un file di configurazione per apt con un mirror locale
-RUN echo "deb http://archive.ubuntu.com/ubuntu jammy main universe" > /etc/apt/sources.list
+FROM flink
+
 # Aggiorna i repository e installa Python
-RUN apt-get update -y
-RUN apt-get install python3 -y
-RUN apt-get update -y
-RUN apt-get install python3-pip -y
+RUN apt-get update -y && apt-get install python3 -y
+RUN apt-get update -y && apt-get install python3-pip -y
 
 # Crea un collegamento simbolico per Python 3
 RUN ln -s /usr/bin/python3 /usr/bin/python

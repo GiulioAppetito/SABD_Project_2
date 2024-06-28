@@ -19,6 +19,17 @@ services:
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
 
+  producer:
+    build:
+      context: ./producer/
+    container_name: producer
+    depends_on:
+      - kafka
+    volumes:
+      - ./producer/data:/home/producer/data
+    networks:
+      - project2_network
+
   flink-jobmanager:
     build:
       context: ./flink/
@@ -28,8 +39,14 @@ services:
     ports:
       - "8081:8081"
       - "6123:6123"
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: jobmanager
+        jobmanager.memory.process.size: 1024m
     networks:
       - project2_network
+
 
   flink-taskmanager:
     build:
@@ -39,17 +56,11 @@ services:
     hostname: taskmanager
     depends_on:
       - flink-jobmanager
-    networks:
-      - project2_network
-
-  producer:
-    build:
-      context: ./producer/
-    container_name: producer
-    depends_on:
-      - kafka
-    volumes:
-      - ./producer/data:/home/producer/data
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        taskmanager.numberOfTaskSlots: 2
+        taskmanager.memory.process.size: 1024m
     networks:
       - project2_network
 
