@@ -1,5 +1,6 @@
 FROM flink:latest
-
+# Aggiungi un file di configurazione per apt con un mirror locale
+RUN echo "deb http://archive.ubuntu.com/ubuntu jammy main universe" > /etc/apt/sources.list
 # Imposta la directory di lavoro
 WORKDIR /opt/flink
 
