@@ -3,12 +3,8 @@ from datetime import datetime
 def parse_row(row):
     preprocessed_row = {
         "date": row[0],
-        "serial_number": row[1],
-        "model": row[2],
-        "failure": row[3],
         "vault_id": int(row[4]),
-        "power_on_hours": float(row[9]),
-        "temperature_celsius": float(row[32]) if row[32] else None
+        "temperature_celsius": float(row[25]) if row[25] else None
     }
     return preprocessed_row
 

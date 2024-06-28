@@ -33,6 +33,7 @@ def main():
         previous_timestamp = None
 
         for row in csv_reader:
+            # Check if temperature is not None
             current_timestamp = datetime.strptime(row[0], "%Y-%m-%dT%H:%M:%S.%f")
 
             if previous_timestamp:
@@ -41,7 +42,9 @@ def main():
                 time.sleep(scaled_interval)
 
             preprocessed_row = parse_row(row)
-            send_to_kafka(preprocessed_row)
+
+            if preprocessed_row['temperature_celsius'] is not None:
+                send_to_kafka(preprocessed_row)
             previous_timestamp = current_timestamp
 
 
