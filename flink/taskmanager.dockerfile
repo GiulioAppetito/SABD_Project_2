@@ -1,23 +1,21 @@
-FROM bitnami/flink:1.13.2
+# Usa l'immagine base di Apache Flink di Bitnami come punto di partenza
+FROM flink:latest
 
-# Imposta la directory di lavoro
-WORKDIR /opt/flink
-
-# Aggiorna i repository e installa Python
-USER root
-RUN apt-get update && \
-    apt-get install -y python3 python3-pip && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
-
-# Crea un collegamento simbolico per Python 3
+# python configuration
+RUN apt-get update -y
+RUN apt install python3 -y
+RUN apt-get update -y
+RUN apt-get install python3-pip -y
 RUN ln -s /usr/bin/python3 /usr/bin/python
 
-# Copia il job di Flink
-COPY ./src /opt/flink/usrlib
+# Install dependencies
+RUN pip3 install apache-flink
 
-# Configurazione di Flink
-COPY flink-conf.yaml /opt/flink/conf/flink-conf.yaml
+## Adding kafka connector dependency
+RUN curl -o /KafkaConnectorDependencies.jar https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka/1.17.1/flink-sql-connector-kafka-1.17.1.jar
 
-# Comando per avviare il TaskManager
-CMD ["taskmanager"]
+RUN pip3 install jproperties
+RUN pip3 install psquare
+RUN pip3 install tdigest
+
+CMD["taskmanager"]
