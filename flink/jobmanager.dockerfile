@@ -1,16 +1,16 @@
-FROM bitnami/flink:latest
-
-# Imposta la directory di lavoro
-WORKDIR /opt/flink
+FROM flink:latest
 
 # Aggiorna i repository e installa Python
-RUN apt-get update && \
-    apt-get install -y python3 python3-pip && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+RUN apt-get update -y
+RUN apt-get install python3 -y
+RUN apt-get update -y
+RUN apt-get install python3-pip -y
 
 # Crea un collegamento simbolico per Python 3
 RUN ln -s /usr/bin/python3 /usr/bin/python
+
+# Imposta la directory di lavoro
+WORKDIR /opt/flink
 
 # Copia i requirements e installa le dipendenze
 COPY ./config/requirements.txt /opt/flink/usrlib/requirements.txt
