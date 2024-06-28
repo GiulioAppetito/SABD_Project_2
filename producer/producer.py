@@ -7,7 +7,7 @@ from datetime import datetime
 from utils import parse_row, scale_interval
 
 # Configuration
-KAFKA_BROKER = os.getenv('BOOTSTRAP_SERVERS', 'localhost:9092')
+KAFKA_BROKER = os.getenv('KAFKA_BROKER', 'localhost:9092')
 TOPIC_NAME = os.getenv('TOPIC_NAME', 'hdd_events')
 CSV_FILE_PATH = '/home/producer/data/raw_data_medium-utv_sorted.csv'
 SCALE_FACTOR = 3600  # 1 hour becomes 1 second
@@ -17,23 +17,6 @@ producer = KafkaProducer(
     bootstrap_servers=KAFKA_BROKER,
     value_serializer=lambda v: json.dumps(v).encode('utf-8')
 )
-
-
-def parse_row(row):
-    preprocessed_row = {
-        "date": row[0],
-        "serial_number": row[1],
-        "model": row[2],
-        "failure": row[3],
-        "vault_id": int(row[4]),
-        "power_on_hours": int(row[9]),
-        "temperature_celsius": int(row[32]) if row[32] else None
-    }
-    return preprocessed_row
-
-
-def scale_interval(interval, scale_factor):
-    return interval / scale_factor
 
 
 def send_to_kafka(row):

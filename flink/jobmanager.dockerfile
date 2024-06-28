@@ -1,22 +1,20 @@
-# Usa l'immagine base di Apache Flink di Bitnami come punto di partenza
-FROM flink:latest
+FROM bitnami/flink:latest
 
-# python configuration
-RUN apt-get update -y
-RUN apt install python3 -y
-RUN apt-get update -y
-RUN apt-get install python3-pip -y
+# Imposta la directory di lavoro
+WORKDIR /opt/flink
+
+# Aggiorna i repository e installa Python
+RUN apt-get update && \
+    apt-get install -y python3 python3-pip && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Crea un collegamento simbolico per Python 3
 RUN ln -s /usr/bin/python3 /usr/bin/python
 
-# Install dependencies
-RUN pip3 install apache-flink
-
-## Adding kafka connector dependency
-RUN curl -o /KafkaConnectorDependencies.jar https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka/1.17.1/flink-sql-connector-kafka-1.17.1.jar
-
-RUN pip3 install jproperties
-RUN pip3 install psquare
-RUN pip3 install tdigest
+# Copia i requirements e installa le dipendenze
+COPY ./config/requirements.txt /opt/flink/usrlib/requirements.txt
+RUN pip3 install -r /opt/flink/usrlib/requirements.txt
 
 # Copia il job di Flink
 COPY ./src /opt/flink/usrlib

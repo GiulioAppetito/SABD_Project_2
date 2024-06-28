@@ -1,10 +1,18 @@
 FROM python:latest
 
+# Imposta la directory di lavoro
 WORKDIR /home/producer
 
-COPY config/requirements.txt requirements.txt
+# Copia i requirements e installa le dipendenze
+COPY config/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY producer.py producer.py
+# Copia il codice sorgente
+COPY producer.py .
+COPY utils.py .
 
-#CMD ["python", "producer.py"]
+# Copia i dati
+COPY data /home/producer/data
+
+# Comando per avviare il producer
+CMD ["python", "producer.py"]
