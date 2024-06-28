@@ -1,21 +1,22 @@
-FROM apache/flink:latest
+FROM apache/flink:1.13.2-scala_2.11
 
-# Install Python dependencies
-RUN apt-get update -y
-RUN apt install python3 -y
-RUN apt-get update -y
-RUN apt-get install python3-pip -y
-RUN ln -s /usr/bin/python3 /usr/bin/python
-RUN pip3 install apache-flink
-
-# Download Flink Kafka connector
-RUN curl -o /opt/flink/lib/flink-connector-kafka_2.11-1.13.2.jar \
-    https://repo.maven.apache.org/maven2/org/apache/flink/flink-connector-kafka_2.11/1.13.2/flink-connector-kafka_2.11-1.13.2.jar
-
-# Set the working directory to /opt/flink
+# Imposta la directory di lavoro
 WORKDIR /opt/flink
 
-# Copy the Flink job to the Flink jobmanager
-COPY src/flink_job.py /opt/flink/usrlib/flink_job.py
+# Aggiorna i repository e installa Python
+RUN apt-get update -y && \
+    apt-get install -y python3 python3-pip && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
+# Crea un collegamento simbolico per Python 3
+RUN ln -s /usr/bin/python3 /usr/bin/python
+
+# Copia il job di Flink
+COPY ./src /opt/flink/usrlib
+
+# Configurazione di Flink per Prometheus
+COPY flink-conf.yaml /opt/flink/conf/flink-conf.yaml
+
+# Comando per avviare il JobManager
 CMD ["jobmanager"]
