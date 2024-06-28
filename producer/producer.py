@@ -7,7 +7,7 @@ from datetime import datetime
 from utils import parse_row, scale_interval
 
 # Configuration
-KAFKA_BROKER = os.getenv('KAFKA_BROKER', 'localhost:9092')
+KAFKA_BROKER = os.getenv('KAFKA_BROKER', 'kafka:9092')
 TOPIC_NAME = os.getenv('TOPIC_NAME', 'hdd_events')
 CSV_FILE_PATH = '/home/producer/data/raw_data_medium-utv_sorted.csv'
 SCALE_FACTOR = 3600  # 1 hour becomes 1 second

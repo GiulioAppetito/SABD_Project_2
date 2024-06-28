@@ -1,4 +1,4 @@
-FROM python:latest
+FROM python:3.11
 
 RUN apt-get update
 RUN apt-get -y install python3-pip
@@ -16,6 +16,3 @@ COPY utils.py .
 
 # Copia i dati
 COPY data /home/producer/data
-
-# Comando per avviare il producer
-CMD ["python", "producer.py"]
