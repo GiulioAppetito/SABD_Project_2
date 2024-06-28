@@ -1,16 +1,22 @@
-FROM apache/flink:latest
+# Usa l'immagine base di Apache Flink di Bitnami come punto di partenza
+FROM flink:latest
 
-# Install Python dependencies
+# python configuration
 RUN apt-get update -y
 RUN apt install python3 -y
 RUN apt-get update -y
 RUN apt-get install python3-pip -y
 RUN ln -s /usr/bin/python3 /usr/bin/python
+
+# Install dependencies
 RUN pip3 install apache-flink
 
-# Download Flink Kafka connector
-RUN curl -o /opt/flink/lib/flink-connector-kafka_2.11-1.13.2.jar \
-    https://repo.maven.apache.org/maven2/org/apache/flink/flink-connector-kafka_2.11/1.13.2/flink-connector-kafka_2.11-1.13.2.jar
+## Adding kafka connector dependency
+RUN curl -o /KafkaConnectorDependencies.jar https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka/1.17.1/flink-sql-connector-kafka-1.17.1.jar
+
+RUN pip3 install jproperties
+RUN pip3 install psquare
+RUN pip3 install tdigest
 
 # Set the working directory to /opt/flink
 WORKDIR /opt/flink
