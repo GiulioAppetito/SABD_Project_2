@@ -1,0 +1,2 @@
+jobmanager.rpc.address: jobmanager
+taskmanager.numberOfTaskSlots: 2

@@ -1,27 +1,23 @@
-# Usa l'immagine base di Apache Flink di Bitnami come punto di partenza
-FROM flink:latest
+FROM bitnami/flink:1.13.2
 
-# python configuration
-RUN apt-get update -y
-RUN apt install python3 -y
-RUN apt-get update -y
-RUN apt-get install python3-pip -y
-RUN ln -s /usr/bin/python3 /usr/bin/python
-
-# Install dependencies
-RUN pip3 install apache-flink
-
-## Adding kafka connector dependency
-RUN curl -o /KafkaConnectorDependencies.jar https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka/1.17.1/flink-sql-connector-kafka-1.17.1.jar
-
-RUN pip3 install jproperties
-RUN pip3 install psquare
-RUN pip3 install tdigest
-
-# Set the working directory to /opt/flink
+# Imposta la directory di lavoro
 WORKDIR /opt/flink
 
-# Copy the Flink job to the Flink jobmanager
-COPY src/flink_job.py /opt/flink/usrlib/flink_job.py
+# Aggiorna i repository e installa Python
+USER root
+RUN apt-get update && \
+    apt-get install -y python3 python3-pip && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
+# Crea un collegamento simbolico per Python 3
+RUN ln -s /usr/bin/python3 /usr/bin/python
+
+# Copia il job di Flink
+COPY ./src /opt/flink/usrlib
+
+# Configurazione di Flink
+COPY flink-conf.yaml /opt/flink/conf/flink-conf.yaml
+
+# Comando per avviare il JobManager
 CMD ["jobmanager"]

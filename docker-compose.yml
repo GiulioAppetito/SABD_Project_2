@@ -17,6 +17,7 @@ services:
     environment:
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
 
   flink-jobmanager:
     build:
@@ -27,8 +28,6 @@ services:
     ports:
       - "8081:8081"
       - "6123:6123"
-    environment:
-      - JOB_MANAGER_RPC_ADDRESS=jobmanager
     networks:
       - project2_network
 
@@ -40,9 +39,6 @@ services:
     hostname: taskmanager
     depends_on:
       - flink-jobmanager
-    environment:
-      - JOB_MANAGER_RPC_ADDRESS=jobmanager
-      - TASK_MANAGER_NUMBER_OF_TASK_SLOTS=10
     networks:
       - project2_network
 
