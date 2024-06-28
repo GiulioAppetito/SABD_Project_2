@@ -10,7 +10,7 @@ from pyflink.datastream.window_assigners import TumblingEventTimeWindows
 
 from datetime import datetime
 
-from flink.src.welford import update, finalize
+from flink.src.utils.welford import update, finalize
 
 
 def process_window_function(key, context: ProcessWindowFunction.Context, elements, out):
