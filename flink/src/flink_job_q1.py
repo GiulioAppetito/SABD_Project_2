@@ -33,54 +33,38 @@ def main():
     # Obtain an execution environment
     env = StreamExecutionEnvironment.get_execution_environment()
     env.set_parallelism(1)
-    env.set_stream_time_characteristic(TimeCharacteristic.EventTime)
+    #env.set_stream_time_characteristic(TimeCharacteristic.EventTime)
+    env.add_jars("file:///opt/flink/lib/flink-sql-connector-kafka-1.17.1.jar")
 
     # Configuration of Source (KafkaConsumer)
     kafka_source_topic = 'hdd_events'
-    kafka_consumer_group = 'flink_consumer_group'
-    kafka_bootstrap_servers = 'localhost:9092'
+    kafka_consumer_group = 'sabd_consumer_group'
+    kafka_bootstrap_servers = 'kafka:9092'
+    security_protocol = 'PLAINTEXT'
 
     kafka_consumer = FlinkKafkaConsumer(
         topics=kafka_source_topic,
         deserialization_schema=SimpleStringSchema(),
         properties={
             'bootstrap.servers': kafka_bootstrap_servers,
-            'group.id': kafka_consumer_group
+            'group.id': kafka_consumer_group,
+            'security.protocol': security_protocol
         }
     )
 
     # Creating the DataStream from source
     kafka_stream = env.add_source(kafka_consumer)
 
-    # Timestamps and watermarks
-    watermark_strategy = WatermarkStrategy.for_bounded_out_of_orderness(Time.seconds(20))
-
+    watermark_strategy = WatermarkStrategy.for_monotonous_timestamps()
     kafka_stream = kafka_stream.assign_timestamps_and_watermarks(
-        watermark_strategy
-        # Probably you dont need assigner for kafka
-        .with_timestamp_assigner(lambda event, timestamp: datetime.strptime(event.split(",")[0], "%Y-%m-%dT%H:%M:%S.%f").timestamp() * 1000)
+        watermark_strategy.with_timestamp_assigner(lambda event, timestamp: datetime.strptime(event.split(",")[0], "%Y-%m-%dT%H:%M:%S.%f").timestamp()*10000)
     )
 
-
-    # Processing stream
-    result_stream = (kafka_stream
-                     .map(lambda x: json.loads(x), output_type=Types.PICKLED_BYTE_ARRAY())
-                     .filter(lambda x: 1000 <= x["vault_id"] <= 1020)  # Filtro per vault_id
-                     .key_by(lambda x: x["vault_id"])  # Raggruppamento per vault_id
-                     .window(TumblingEventTimeWindows.of(Time.days(1)))  # Applicazione di una finestra temporale di un giorno
-                     .process(ProcessWindowFunction(process_window_function, output_type=Types.STRING()))  # Elaborazione della finestra
-                     )
-
-    # Configuration of Sink (KafkaProducer)
-    kafka_sink_topic = 'result_topic'
-    result_stream.add_sink(FlinkKafkaProducer(
-        topic=kafka_sink_topic,
-        serialization_schema=SimpleStringSchema(),
-        producer_config={'bootstrap.servers': kafka_bootstrap_servers}
-    ))
+    # Stampa
+    kafka_stream.map(lambda x: f"Messaggio da Kafka: {x}", output_type=Types.STRING()).print()
 
     # Execute the Flink Job
-    env.execute("Flink Streaming Job Q1")
+    env.execute("Flink Kafka Consumer Test Giulio")
 
 if __name__ == '__main__':
     main()
