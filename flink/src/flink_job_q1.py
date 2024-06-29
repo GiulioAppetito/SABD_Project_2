@@ -8,7 +8,7 @@ from pyflink.datastream.functions import MapFunction
 
 class PrintFunction(MapFunction):
     def map(self, value):
-        print(f"Record received: {value}")
+        print(f"Mi hanno maaaaaaandato da kafka: {value}")
         return value
 
 

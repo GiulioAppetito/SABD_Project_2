@@ -20,6 +20,9 @@ RUN wget -P /opt/flink/lib/ https://repo.maven.apache.org/maven2/org/apache/flin
 # Copia il job di Flink
 COPY src /opt/flink/jobs/src
 
+# Expose ports
+EXPOSE 6123 8081
+
 # Configurazione di Flink
 COPY flink-conf.yaml /opt/flink/conf/flink-conf.yaml
 
