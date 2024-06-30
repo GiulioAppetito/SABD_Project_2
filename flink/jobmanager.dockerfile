@@ -7,6 +7,7 @@ RUN apt-get update -y && apt-get install python3-pip -y
 # Crea un collegamento simbolico per Python 3
 RUN ln -s /usr/bin/python3 /usr/bin/python
 
+
 # Imposta la directory di lavoro
 WORKDIR /opt/flink
 

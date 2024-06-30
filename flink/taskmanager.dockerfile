@@ -11,6 +11,7 @@ RUN apt-get update -y && apt-get install python3-pip -y
 # Crea un collegamento simbolico per Python 3
 RUN ln -s /usr/bin/python3 /usr/bin/python
 
+
 # Copia i requirements e installa le dipendenze
 COPY ./config/requirements.txt /opt/flink/usrlib/requirements.txt
 RUN pip3 install -r /opt/flink/usrlib/requirements.txt

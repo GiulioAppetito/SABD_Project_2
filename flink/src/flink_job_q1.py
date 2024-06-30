@@ -13,6 +13,7 @@ class PrintFunction(MapFunction):
 
 
 def main():
+
     # Obtain an execution environment
     env = StreamExecutionEnvironment.get_execution_environment()
     env.set_parallelism(1)

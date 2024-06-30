@@ -59,7 +59,6 @@ services:
     networks:
       - project2_network
 
-
   flink-taskmanager:
     build:
       context: ./flink/
