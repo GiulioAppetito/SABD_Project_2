@@ -55,7 +55,7 @@ services:
       - |
         FLINK_PROPERTIES=
         jobmanager.rpc.address: jobmanager
-        jobmanager.memory.process.size: 1024m
+        jobmanager.memory.process.size: 2048m
     networks:
       - project2_network
 
@@ -72,8 +72,18 @@ services:
       - |
         FLINK_PROPERTIES=
         jobmanager.rpc.address: jobmanager
-        taskmanager.numberOfTaskSlots: 2
-        taskmanager.memory.process.size: 1024m
+        taskmanager.numberOfTaskSlots: 3
+        taskmanager.memory.process.size: 2048m
+    networks:
+      - project2_network
+
+  consumer:
+    container_name: consumer
+    build: ./consumer
+    volumes:
+      - ./Results:/app/Results
+    depends_on:
+      - kafka
     networks:
       - project2_network
 
