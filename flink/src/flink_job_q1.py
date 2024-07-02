@@ -1,71 +1,68 @@
-import json
-import math
-import datetime
 from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.datastream.connectors.kafka import FlinkKafkaConsumer, FlinkKafkaProducer
-from pyflink.common.serialization import SimpleStringSchema
+from pyflink.datastream.formats.json import JsonRowDeserializationSchema, JsonRowSerializationSchema
 from pyflink.common.typeinfo import Types
 from pyflink.common import Row
-from pyflink.datastream.functions import AggregateFunction, ProcessWindowFunction
-from pyflink.datastream.formats.json import JsonRowDeserializationSchema, JsonRowSerializationSchema
 from pyflink.common.watermark_strategy import WatermarkStrategy, TimestampAssigner
 from pyflink.datastream.window import Time, TumblingEventTimeWindows, GlobalWindows
+from pyflink.datastream.functions import AggregateFunction, ProcessWindowFunction
 from pyflink.datastream.triggers import CountTrigger
-
+import datetime
+import math
+from typing import Iterable, Tuple
 
 class MyTimestampAssigner(TimestampAssigner):
     def extract_timestamp(self, value, record_timestamp):
         return int(datetime.datetime.strptime(value['date'], "%Y-%m-%dT%H:%M:%S.%f").timestamp() * 1000)
 
-
-def update(existing_aggregate, new_value):
-    (count, mean, M2) = existing_aggregate
-    count += 1
-    delta = new_value - mean
-    mean += delta / count
-    delta2 = new_value - mean
-    M2 += delta * delta2
-    return count, mean, M2
-
-
-def finalize(existing_aggregate):
-    (count, mean, M2) = existing_aggregate
-    if count < 2:
-        return float("nan"), float("nan")
-    else:
-        (mean, variance, sample_variance) = (mean, M2 / count, M2 / (count - 1))
-        return mean, math.sqrt(variance)
-
-
-class TemperatureAggregateFunction(AggregateFunction):
+class TemperatureAggregate(AggregateFunction):
     def create_accumulator(self):
-        return 0, 0.0, 0.0
+        return (0, 0.0, 0.0)  # count, mean, M2
 
-    def add(self, value, accumulator):
-        return update(accumulator, float(value['s194_temperature_celsius']))
+    def add(self, value, accumulator) -> tuple[int, float, float]:
+        count, mean, M2 = accumulator
+        new_value = float(value['s194_temperature_celsius'])
+        count += 1
+        delta = new_value - mean
+        mean += delta / count
+        delta2 = new_value - mean
+        M2 += delta * delta2
+        return (count, mean, M2)
 
     def get_result(self, accumulator):
         return accumulator
 
+    def merge(self, a, b) -> tuple[int, float, float]:
+        count_a, mean_a, M2_a = a
+        count_b, mean_b, M2_b = b
 
-class ComputeStatistics(ProcessWindowFunction):
-    def process(self, key, context: ProcessWindowFunction.Context, elements, out):
-        count, mean, M2 = next(iter(elements))
-        mean, stddev = finalize((count, mean, M2))
+        delta = mean_b - mean_a
+        count = count_a + count_b
+        mean = mean_a + delta * count_b / count
+        M2 = M2_a + M2_b + delta**2 * count_a * count_b / count
+
+        return (count, mean, M2)
+
+class ComputeStats(ProcessWindowFunction):
+
+    def process(self, key, context: ProcessWindowFunction.Context, stats: Iterable[Tuple[int, float, float]]):
+        count, mean, M2 = next(iter(stats))
+        variance = M2 / count if count > 0 else float('nan')
+        stddev = math.sqrt(variance) if count > 1 else float('nan')
         window = context.window()
-        result = Row(window.start, key, count, mean, stddev)
-        out.collect(result)
-
+        yield Row(window.start, key, count, mean, stddev)
 
 def main():
     env = StreamExecutionEnvironment.get_execution_environment()
     env.set_parallelism(1)
+    env.add_jars("file:///opt/flink/lib/flink-sql-connector-kafka-1.17.1.jar")
 
-    # Consumer configuration
+    # Configurazione del consumatore Kafka
     kafka_source_topic = 'hdd_events'
     kafka_consumer_group = 'flink_consumer_group'
     kafka_bootstrap_servers = 'kafka:9092'
 
+    # Schema di deserializzazione
     deserialization_schema = (JsonRowDeserializationSchema.Builder()
                               .type_info(Types.ROW_NAMED(
         ["date", "serial_number", "model", "failure", "vault_id", "s9_power_on_hours", "s194_temperature_celsius"],
@@ -73,6 +70,7 @@ def main():
     ))
                               .build())
 
+    # Configurazione del consumatore Kafka
     kafka_consumer = FlinkKafkaConsumer(
         topics=kafka_source_topic,
         deserialization_schema=deserialization_schema,
@@ -82,17 +80,15 @@ def main():
         }
     )
 
-    # Topics for each window result
+    # Configurazione del produttore Kafka
     kafka_sink_topic_1d = 'query1_1d_results'
     kafka_sink_topic_3d = 'query1_3d_results'
     kafka_sink_topic_global = 'query1_global_results'
 
-    serialization_schema = (JsonRowSerializationSchema.Builder()
-                            .with_type_info(Types.ROW_NAMED(
-        ["ts", "vault_id", "count", "mean_s194", "stddev_s194"],
-        [Types.LONG(), Types.STRING(), Types.LONG(), Types.FLOAT(), Types.FLOAT()]
-    ))
-                            .build())
+    serialization_schema = JsonRowSerializationSchema.builder().with_type_info(
+        Types.ROW_NAMED(["ts", "vault_id", "count", "mean_s194", "stddev_s194"],
+                        [Types.LONG(), Types.STRING(), Types.LONG(), Types.FLOAT(), Types.FLOAT()])
+    ).build()
 
     kafka_producer_1d = FlinkKafkaProducer(
         topic=kafka_sink_topic_1d,
@@ -112,63 +108,44 @@ def main():
         producer_config={'bootstrap.servers': kafka_bootstrap_servers}
     )
 
-    # Source stream from kafka
+    # Flusso di dati di esempio con assegnazione timestamp e watermark
     kafka_stream = env.add_source(kafka_consumer)
 
-    # Watermark strategy definition
-    watermark_strategy = WatermarkStrategy.for_monotonous_timestamps().with_timestamp_assigner(MyTimestampAssigner())
+    watermark_strategy = (WatermarkStrategy
+                          .for_monotonous_timestamps()
+                          .with_timestamp_assigner(MyTimestampAssigner())
+                          )
 
-    # Partial stream before windows
-    partial_stream = (kafka_stream
-                      .filter(lambda x: 1000 <= int(x['vault_id']) <= 1020)
-                      .assign_timestamps_and_watermarks(watermark_strategy)
-                      )
+    filtered_stream = (kafka_stream
+                       .filter(lambda x: 1000 <= int(x['vault_id']) <= 1020)
+                       .assign_timestamps_and_watermarks(watermark_strategy))
 
-    # 1-day window
-    (partial_stream
-     .key_by(lambda x: x['vault_id'])
-     .window(TumblingEventTimeWindows.of(Time.days(1)))
-     .aggregate(TemperatureAggregateFunction(), ComputeStatistics())
-     .map(lambda row: json.dumps({
-        "ts": row[0],
-        "vault_id": row[1],
-        "count": row[2],
-        "mean_s194": row[3],
-        "stddev_s194": row[4]
-    }))
-     .add_sink(kafka_producer_1d))
+    # Finestra di 1 giorno
+    windowed_stream_1d = (filtered_stream
+                          .key_by(lambda x: x['vault_id'])
+                          .window(TumblingEventTimeWindows.of(Time.days(1)))
+                          .aggregate(TemperatureAggregate(), ComputeStats()))
 
-    # 3-days window
-    (partial_stream
-     .key_by(lambda x: x['vault_id'])
-     .window(TumblingEventTimeWindows.of(Time.days(3)))
-     .aggregate(TemperatureAggregateFunction(), ComputeStatistics())
-     .map(lambda row: json.dumps({
-        "window_start": row[0],
-        "vault_id": row[1],
-        "count": row[2],
-        "mean": row[3],
-        "stddev": row[4]
-    }))
-     .add_sink(kafka_producer_3d))
+    windowed_stream_1d.add_sink(kafka_producer_1d)
 
-    # Global window
-    (partial_stream
-     .key_by(lambda x: x['vault_id'])
-     .window(GlobalWindows.create())
-     .trigger(CountTrigger.of(1))  # To ensure that each record is processed
-     .aggregate(TemperatureAggregateFunction(), ComputeStatistics())
-     .map(lambda row: json.dumps({
-        "window_start": row[0],
-        "vault_id": row[1],
-        "count": row[2],
-        "mean": row[3],
-        "stddev": row[4]
-    }))
-     .add_sink(kafka_producer_global))
+    # Finestra di 3 giorni
+    windowed_stream_3d = (filtered_stream
+                          .key_by(lambda x: x['vault_id'])
+                          .window(TumblingEventTimeWindows.of(Time.days(3)))
+                          .aggregate(TemperatureAggregate(), ComputeStats()))
 
-    env.execute("Flink Kafka Job 1 test")
+    windowed_stream_3d.add_sink(kafka_producer_3d)
 
+    # Finestra globale
+    windowed_stream_global = (filtered_stream
+                              .key_by(lambda x: x['vault_id'])
+                              .window(GlobalWindows.create())
+                              #.trigger(CountTrigger.of(1))
+                              .aggregate(TemperatureAggregate(), ComputeStats()))
+
+    windowed_stream_global.add_sink(kafka_producer_global)
+
+    env.execute("Flink Kafka Job Test")
 
 if __name__ == '__main__':
     main()

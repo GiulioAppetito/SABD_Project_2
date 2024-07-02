@@ -1,31 +1,41 @@
-import argparse
 import os
 import json
 import csv
 import logging
 import threading
+import time
 from kafka import KafkaConsumer
+from kafka.errors import KafkaError
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-
 class KafkaQueryConsumer:
-    def __init__(self, bootstrap_servers, group_id, output_dir):
+    def __init__(self, bootstrap_servers, group_id, output_dir, max_retries=10, retry_delay=5):
         self.bootstrap_servers = bootstrap_servers
         self.group_id = group_id
         self.output_dir = output_dir
+        self.max_retries = max_retries
+        self.retry_delay = retry_delay
 
     def create_consumer(self, topic):
-        return KafkaConsumer(
-            topic,
-            bootstrap_servers=self.bootstrap_servers,
-            group_id=self.group_id,
-            auto_offset_reset='earliest',
-            enable_auto_commit=False,
-            value_deserializer=lambda m: json.loads(m.decode('utf-8'))
-        )
+        for attempt in range(self.max_retries):
+            try:
+                consumer = KafkaConsumer(
+                    topic,
+                    bootstrap_servers=self.bootstrap_servers,
+                    group_id=self.group_id,
+                    auto_offset_reset='earliest',
+                    enable_auto_commit=False,
+                    value_deserializer=lambda m: json.loads(m.decode('utf-8'))
+                )
+                logging.info(f"Connected to Kafka broker on attempt {attempt + 1}")
+                return consumer
+            except Exception as e:
+                logging.error(f"Attempt {attempt + 1} to connect to Kafka broker failed: {e}")
+                time.sleep(self.retry_delay)
+        raise Exception("Failed to connect to Kafka broker after multiple attempts")
 
-    def write_csv(self, file_path, fieldnames, rows):
+    def write_csv_file(self, file_path, fieldnames, rows):
         with open(file_path, mode='w', newline='') as csv_file:
             writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
             writer.writeheader()
@@ -39,20 +49,14 @@ class KafkaQueryConsumer:
         kafka_consumer = self.create_consumer(topic)
         try:
             rows = []
-            while True:
-                messages = kafka_consumer.poll(timeout_ms=1000)
-                if not messages:
-                    logging.info("Consumer didn't receive any record in this poll!")
-                for partition, msgs in messages.items():
-                    for message in msgs:
-                        record = message.value
-                        logging.info(f"Consumer received this record from the topic {topic}: {record}")
-                        rows.append(record)
+            for message in kafka_consumer:
+                record = message.value
+                logging.info(f"Consumer received this record from the topic {topic}: {record}")
+                rows.append(record)
                 if rows:
-                    self.write_csv(csv_file_path, fieldnames, rows)
+                    self.write_csv_file(csv_file_path, fieldnames, rows)
                     kafka_consumer.commit()
                     rows = []
-
         except KeyboardInterrupt:
             pass
         except Exception as e:
@@ -60,42 +64,18 @@ class KafkaQueryConsumer:
         finally:
             kafka_consumer.close()
 
-    def run(self, queries_to_execute):
-
+    def run(self):
         # Create the directory for output results
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
 
         topic_fieldnames = {
-
-            # Query 1 fieldnames
-            'query1_1d_results': ["window_start", "vault_id", "count", "mean", "stddev"],
-            'query1_3d_results': ["window_start", "vault_id", "count", "mean", "stddev"],
-            'query1_global_results': ["window_start", "vault_id", "count", "mean", "stddev"],
-
-            #Query2 fieldnames
-            'query2_1d_results': ["ts", "vault_id1", "failures1", "details1", "vault_id2", "failures2", "details2",
-                                  "vault_id3", "failures3", "details3", "vault_id4", "failures4", "details4",
-                                  "vault_id5", "failures5", "details5", "vault_id6", "failures6", "details6",
-                                  "vault_id7", "failures7", "details7", "vault_id8", "failures8", "details8",
-                                  "vault_id9", "failures9", "details9", "vault_id10", "failures10", "details10"],
-            'query2_3d_results': ["ts", "vault_id1", "failures1", "details1", "vault_id2", "failures2", "details2",
-                                  "vault_id3", "failures3", "details3", "vault_id4", "failures4", "details4",
-                                  "vault_id5", "failures5", "details5", "vault_id6", "failures6", "details6",
-                                  "vault_id7", "failures7", "details7", "vault_id8", "failures8", "details8",
-                                  "vault_id9", "failures9", "details9", "vault_id10", "failures10", "details10"],
-            'query2_global_results': ["ts", "vault_id1", "failures1", "details1", "vault_id2", "failures2", "details2",
-                                      "vault_id3", "failures3", "details3", "vault_id4", "failures4", "details4",
-                                      "vault_id5", "failures5", "details5", "vault_id6", "failures6", "details6",
-                                      "vault_id7", "failures7", "details7", "vault_id8", "failures8", "details8",
-                                      "vault_id9", "failures9", "details9", "vault_id10", "failures10", "details10"]
+            'query1_1d_results': ["ts", "vault_id", "count", "mean_s149", "stddev_s149"],
+            'query1_3d_results': ["ts", "vault_id", "count", "mean_s149", "stddev_s149"],
+            'query1_global_results': ["ts", "vault_id", "count", "mean_s149", "stddev_s149"]
         }
 
-        topics_to_consume = []
-        if 'query1' in queries_to_execute:
-            topics_to_consume.extend(['query1_1d_results', 'query1_3d_results', 'query1_global_results'])
-        if 'query2' in queries_to_execute:
-            topics_to_consume.extend(['query2_1d_results', 'query2_3d_results', 'query2_global_results'])
+        topics_to_consume = ['query1_1d_results', 'query1_3d_results', 'query1_global_results']
 
         threads = []
         for topic in topics_to_consume:
@@ -107,18 +87,7 @@ class KafkaQueryConsumer:
         for thread in threads:
             thread.join()
 
-# function to parse the argument (choice of the query)
-def parse_arguments():
-    parser = argparse.ArgumentParser(description="Kafka Consumer for Flink Queries")
-    parser.add_argument('--queries', type=str, choices=['query1', 'query2', 'both'], required=True,
-                        help='Queries to consume (query1, query2, both)')
-    return parser.parse_args()
-
-
 if __name__ == '__main__':
-    # Parse the argument to choose between the two queries (or both)
-    args = parse_arguments()
-
     # Consumer init
     consumer = KafkaQueryConsumer(
         bootstrap_servers='kafka:9092',
@@ -126,12 +95,4 @@ if __name__ == '__main__':
         output_dir='Results'
     )
 
-    queries = []
-    if args.queries == 'query1':
-        queries.append('query1')
-    elif args.queries == 'query2':
-        queries.append('query2')
-    elif args.queries == 'both':
-        queries.extend(['query1', 'query2'])
-
-    consumer.run(queries)
+    consumer.run()
