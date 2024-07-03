@@ -1,10 +1,13 @@
+import datetime
 import logging
 from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.datastream.connectors.kafka import FlinkKafkaConsumer, FlinkKafkaProducer
 from pyflink.datastream.formats.json import JsonRowDeserializationSchema, JsonRowSerializationSchema
 from pyflink.common.typeinfo import Types
 from pyflink.common import Row
-from pyflink.datastream.window import TumblingEventTimeWindows, Time
+from pyflink.common import WatermarkStrategy
+from pyflink.common.watermark_strategy import TimestampAssigner
+from pyflink.datastream.window import TumblingEventTimeWindows, Time, CountWindow
 from pyflink.datastream.functions import AggregateFunction, ProcessWindowFunction
 from pyflink.datastream.state import ValueStateDescriptor
 from pyflink.datastream.window import TimeWindow
@@ -29,10 +32,16 @@ def update(existing_aggregate, new_value):
 def finalize(existing_aggregate):
     (count, mean, M2) = existing_aggregate
     if count < 2:
-        return float("nan")
+        return mean, float("nan"), float("nan")
     else:
         (mean, variance, sample_variance) = (mean, M2 / count, M2 / (count - 1))
         return (mean, variance, sample_variance)
+
+
+class MyTimestampAssigner(TimestampAssigner):
+    def extract_timestamp(self, value, record_timestamp):
+        logging.info("sono il log value.data", value)
+        return datetime.datetime.strptime(value.date, "%Y-%m-%dT%H:%M:%S.%f").timestamp() * 1000
 
 
 class TemperatureAggregate(AggregateFunction):
@@ -72,10 +81,9 @@ class ComputeStats(ProcessWindowFunction):
 
         result = Row(window_start=window.start, vault_id=key, count=count, mean=mean, stddev=stddev)
 
-        # Logga i risultati prima di scrivere su Kafka
-        logging.info(f"Window Start: {window.start}, Vault ID: {key}, Count: {count}, Mean: {mean}, Stddev: {stddev}")
-
+        # Log the results before writing to Kafka
         yield result
+
 
 def main():
     logging.info("Starting Flink job")
@@ -105,13 +113,14 @@ def main():
         }
     )
 
-
     # Configurazione del produttore Kafka
     kafka_sink_topic_1d = 'filtered_hdd_events'
 
+
+
     serialization_schema = JsonRowSerializationSchema.builder().with_type_info(
         Types.ROW_NAMED(["window_start", "vault_id", "count", "mean", "stddev"],
-                        [Types.LONG(), Types.INT(), Types.LONG(), Types.DOUBLE(), Types.DOUBLE()])
+                        [Types.LONG(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT()])
     ).build()
 
     kafka_producer_1d = FlinkKafkaProducer(
@@ -119,7 +128,8 @@ def main():
         serialization_schema=serialization_schema,
         producer_config={'bootstrap.servers': kafka_bootstrap_servers}
     )
-
+    # Watermark strategy
+    watermark_strategy = WatermarkStrategy.for_monotonous_timestamps().with_timestamp_assigner(MyTimestampAssigner())
 
     # Source DataStream
     kafka_stream = env.add_source(kafka_consumer)
@@ -127,23 +137,21 @@ def main():
     # Filtered stream before windows
     filtered_stream = (kafka_stream
                        .filter(lambda x: 1000 <= x.vault_id <= 1020)
-                       .map(lambda x: Row(vault_id=x.vault_id, s194_temperature_celsius=x.s194_temperature_celsius),
-                            Types.ROW_NAMED(["vault_id", "s194_temperature_celsius"], [Types.INT(), Types.FLOAT()]))
+                       .assign_timestamps_and_watermarks(watermark_strategy)
+                       .map(
+        lambda x: Row(date=x.date, vault_id=x.vault_id, s194_temperature_celsius=x.s194_temperature_celsius),
+        Types.ROW_NAMED(["date", "vault_id", "s194_temperature_celsius"], [Types.STRING(), Types.INT(), Types.FLOAT()]))
                        .key_by(lambda x: x.vault_id)
                        )
 
-    windowed_1d_stream = (filtered_stream
-                          .window(TumblingEventTimeWindows.of(Time.days(1)))
-                          .aggregate(TemperatureAggregate(), ComputeStats(),
-                                     accumulator_type=Types.TUPLE([Types.LONG(), Types.DOUBLE(), Types.DOUBLE()]),
-                                     output_type=Types.ROW_NAMED(
-                                         ["window_start", "vault_id", "count", "mean", "stddev"],
-                                         [Types.LONG(), Types.INT(), Types.LONG(), Types.DOUBLE(),
-                                          Types.DOUBLE()]))
-                          )
+    # Apply a tumbling window of 1 minute for temperature aggregation
+    windowed_stream = (filtered_stream
+                       .window(TumblingEventTimeWindows.of(Time.days(1)))
+                       .aggregate(TemperatureAggregate(), ComputeStats(), output_type=Types.ROW_NAMED(["window_start", "vault_id", "count", "mean", "stddev"],
+                        [Types.LONG(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT()]))
+                       )
 
-
-    windowed_1d_stream.add_sink(kafka_producer_1d)
+    windowed_stream.add_sink(kafka_producer_1d)
 
     env.execute("Flink Kafka Filter and Forward Job")
 
