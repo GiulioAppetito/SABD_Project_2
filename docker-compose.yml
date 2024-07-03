@@ -61,13 +61,14 @@ services:
     networks:
       - project2_network
 
-
   flink-taskmanager:
     build:
       context: ./flink/
       dockerfile: taskmanager.dockerfile
     container_name: taskmanager
     hostname: taskmanager
+    ports:
+      - "8082:8081"
     depends_on:
       - flink-jobmanager
     environment:
@@ -79,6 +80,20 @@ services:
 
     networks:
       - project2_network
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./grafana:/var/lib/grafana
 
   consumer:
     container_name: consumer
