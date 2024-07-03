@@ -48,10 +48,10 @@ def main():
         producer_config={'bootstrap.servers': kafka_bootstrap_servers}
     )
 
-    # Flusso di dati di esempio
+    # Source DataStream
     kafka_stream = env.add_source(kafka_consumer)
 
-    # Filtrare i dati
+    # Filtered stream before windows
     filtered_stream = (kafka_stream
                        .filter(lambda x: 1000 <= x.vault_id <= 1020)
                        .map(lambda x: Row(vault_id=x.vault_id, s194_temperature_celsius=x.s194_temperature_celsius),

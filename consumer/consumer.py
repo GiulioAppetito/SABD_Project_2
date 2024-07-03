@@ -35,10 +35,12 @@ class KafkaQueryConsumer:
                 time.sleep(self.retry_delay)
         raise Exception("Failed to connect to Kafka broker after multiple attempts")
 
-    def write_csv_file(self, file_path, fieldnames, rows):
-        with open(file_path, mode='w', newline='') as csv_file:
+    def write_csv_file(self, file_path, fieldnames, rows, write_header):
+        mode = 'a' if os.path.exists(file_path) else 'w'
+        with open(file_path, mode, newline='') as csv_file:
             writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
-            writer.writeheader()
+            if write_header:
+                writer.writeheader()
             for row in rows:
                 writer.writerow(row)
 
@@ -49,12 +51,17 @@ class KafkaQueryConsumer:
         kafka_consumer = self.create_consumer(topic)
         try:
             rows = []
+            write_header = True
+            if os.path.exists(csv_file_path):
+                write_header = False
+
             for message in kafka_consumer:
                 record = message.value
                 logging.info(f"Consumer received this record from the topic {topic}: {record}")
                 rows.append(record)
                 if rows:
-                    self.write_csv_file(csv_file_path, fieldnames, rows)
+                    self.write_csv_file(csv_file_path, fieldnames, rows, write_header)
+                    write_header = False  # Header should be written only once
                     kafka_consumer.commit()
                     rows = []
         except KeyboardInterrupt:
