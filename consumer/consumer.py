@@ -70,12 +70,12 @@ class KafkaQueryConsumer:
             os.makedirs(self.output_dir)
 
         topic_fieldnames = {
-            'query1_1d_results': ["ts", "vault_id", "count", "mean_s149", "stddev_s149"],
+            'filtered_hdd_events': ["vault_id", "s194_temperature_celsius"],
             'query1_3d_results': ["ts", "vault_id", "count", "mean_s149", "stddev_s149"],
             'query1_global_results': ["ts", "vault_id", "count", "mean_s149", "stddev_s149"]
         }
 
-        topics_to_consume = ['query1_1d_results', 'query1_3d_results', 'query1_global_results']
+        topics_to_consume = ['filtered_hdd_events']
 
         threads = []
         for topic in topics_to_consume:
