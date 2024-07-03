@@ -2,16 +2,17 @@ import os
 import json
 import csv
 import logging
-import threading
 import time
+from threading import Thread
 from kafka import KafkaConsumer
 from kafka.errors import KafkaError
+import shutil
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
 class KafkaQueryConsumer:
-    def __init__(self, bootstrap_servers, group_id, output_dir, max_retries=10, retry_delay=5):
+    def __init__(self, bootstrap_servers, group_id, output_dir, max_retries=10, retry_delay=10):
         self.bootstrap_servers = bootstrap_servers
         self.group_id = group_id
         self.output_dir = output_dir
@@ -46,6 +47,7 @@ class KafkaQueryConsumer:
                 writer.writerow(row)
 
     def consume_results(self, topic, fieldnames):
+        # Ensure each topic writes to a separate file
         csv_file_path = os.path.join(self.output_dir, f"{topic}.csv")
         logging.info(f"Consumer open file for the topic: {topic}")
 
@@ -72,23 +74,35 @@ class KafkaQueryConsumer:
         finally:
             kafka_consumer.close()
 
+    def empty_output_dir(self):
+        for filename in os.listdir(self.output_dir):
+            file_path = os.path.join(self.output_dir, filename)
+            try:
+                if os.path.isfile(file_path) or os.path.islink(file_path):
+                    os.unlink(file_path)
+                elif os.path.isdir(file_path):
+                    shutil.rmtree(file_path)
+            except Exception as e:
+                logging.error(f'Failed to delete {file_path}. Reason: {e}')
+
     def run(self):
         # Create the directory for output results
+        self.empty_output_dir()
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
 
         topic_fieldnames = {
-            'filtered_hdd_events': ["window_start", "vault_id", "count", "mean", "stddev"],
-            'query1_3d_results': ["ts", "vault_id", "count", "mean_s149", "stddev_s149"],
-            'query1_global_results': ["ts", "vault_id", "count", "mean_s149", "stddev_s149"]
+            'query1_1d_results': ["ts", "vault_id", "count", "mean_s194", "stddev_s194"],
+            'query1_3d_results': ["ts", "vault_id", "count", "mean_s194", "stddev_s194"],
+            'query1_all_results': ["ts", "vault_id", "count", "mean_s194", "stddev_s194"]
         }
 
-        topics_to_consume = ['filtered_hdd_events']
+        topics_to_consume = ['query1_1d_results', 'query1_3d_results', 'query1_all_results']
 
         threads = []
         for topic in topics_to_consume:
             fieldnames = topic_fieldnames[topic]
-            thread = threading.Thread(target=self.consume_results, args=(topic, fieldnames))
+            thread = Thread(target=self.consume_results, args=(topic, fieldnames))
             threads.append(thread)
             thread.start()
 

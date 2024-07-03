@@ -79,7 +79,7 @@ class ComputeStats(ProcessWindowFunction):
 
         window: TimeWindow = context.window()
 
-        result = Row(window_start=window.start, vault_id=key, count=count, mean=mean, stddev=stddev)
+        result = Row(ts=window.start, vault_id=key, count=count, mean_s194=mean, stddev_s194=stddev)
 
         # Log the results before writing to Kafka
         yield result
@@ -114,17 +114,27 @@ def main():
     )
 
     # Configurazione del produttore Kafka
-    kafka_sink_topic_1d = 'filtered_hdd_events'
-
-
+    kafka_sink_topic_1d = 'query1_1d_results'
+    kafka_sink_topic_3d = 'query1_3d_results'
+    kafka_sink_topic_all = 'query1_all_results'
 
     serialization_schema = JsonRowSerializationSchema.builder().with_type_info(
-        Types.ROW_NAMED(["window_start", "vault_id", "count", "mean", "stddev"],
+        Types.ROW_NAMED(["ts", "vault_id", "count", "mean_s194", "stddev_s194"],
                         [Types.LONG(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT()])
     ).build()
 
     kafka_producer_1d = FlinkKafkaProducer(
         topic=kafka_sink_topic_1d,
+        serialization_schema=serialization_schema,
+        producer_config={'bootstrap.servers': kafka_bootstrap_servers}
+    )
+    kafka_producer_3d = FlinkKafkaProducer(
+        topic=kafka_sink_topic_3d,
+        serialization_schema=serialization_schema,
+        producer_config={'bootstrap.servers': kafka_bootstrap_servers}
+    )
+    kafka_producer_all = FlinkKafkaProducer(
+        topic=kafka_sink_topic_all,
         serialization_schema=serialization_schema,
         producer_config={'bootstrap.servers': kafka_bootstrap_servers}
     )
@@ -145,13 +155,31 @@ def main():
                        )
 
     # Apply a tumbling window of 1 minute for temperature aggregation
-    windowed_stream = (filtered_stream
-                       .window(TumblingEventTimeWindows.of(Time.days(1)))
-                       .aggregate(TemperatureAggregate(), ComputeStats(), output_type=Types.ROW_NAMED(["window_start", "vault_id", "count", "mean", "stddev"],
-                        [Types.LONG(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT()]))
-                       )
+    windowed_stream_1d = (filtered_stream
+                          .window(TumblingEventTimeWindows.of(Time.days(1)))
+                          .aggregate(TemperatureAggregate(), ComputeStats(), output_type=Types.ROW_NAMED(
+        ["ts", "vault_id", "count", "mean_s194", "stddev_s194"],
+        [Types.LONG(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT()]))
+                          )
+    windowed_stream_1d.add_sink(kafka_producer_1d)
 
-    windowed_stream.add_sink(kafka_producer_1d)
+    # Apply a tumbling window of 3 minutes for temperature aggregation
+    windowed_stream_3d = (filtered_stream
+                          .window(TumblingEventTimeWindows.of(Time.days(3)))
+                          .aggregate(TemperatureAggregate(), ComputeStats(), output_type=Types.ROW_NAMED(
+        ["ts", "vault_id", "count", "mean_s194", "stddev_s194"],
+        [Types.LONG(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT()]))
+                          )
+    windowed_stream_3d.add_sink(kafka_producer_3d)
+
+    # Apply a global window for temperature aggregation
+    windowed_stream_all = (filtered_stream
+                           .window(TumblingEventTimeWindows.of(Time.days(22)))
+                           .aggregate(TemperatureAggregate(), ComputeStats(), output_type=Types.ROW_NAMED(
+        ["ts", "vault_id", "count", "mean_s194", "stddev_s194"],
+        [Types.LONG(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT()]))
+                           )
+    windowed_stream_all.add_sink(kafka_producer_all)
 
     env.execute("Flink Kafka Filter and Forward Job")
 
