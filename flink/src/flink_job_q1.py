@@ -11,15 +11,17 @@ import datetime
 import math
 from typing import Iterable, Tuple
 
+
 class MyTimestampAssigner(TimestampAssigner):
     def extract_timestamp(self, value, record_timestamp):
         return int(datetime.datetime.strptime(value['date'], "%Y-%m-%dT%H:%M:%S.%f").timestamp() * 1000)
+
 
 class TemperatureAggregate(AggregateFunction):
     def create_accumulator(self):
         return (0, 0.0, 0.0)  # count, mean, M2
 
-    def add(self, value, accumulator) -> tuple[int, float, float]:
+    def add(self, value: dict, accumulator: tuple[int, float, float]) -> tuple[int, float, float]:
         count, mean, M2 = accumulator
         new_value = float(value['s194_temperature_celsius'])
         count += 1
@@ -33,15 +35,8 @@ class TemperatureAggregate(AggregateFunction):
         return accumulator
 
     def merge(self, a, b) -> tuple[int, float, float]:
-        count_a, mean_a, M2_a = a
-        count_b, mean_b, M2_b = b
+        pass
 
-        delta = mean_b - mean_a
-        count = count_a + count_b
-        mean = mean_a + delta * count_b / count
-        M2 = M2_a + M2_b + delta**2 * count_a * count_b / count
-
-        return (count, mean, M2)
 
 class ComputeStats(ProcessWindowFunction):
 
@@ -51,6 +46,7 @@ class ComputeStats(ProcessWindowFunction):
         stddev = math.sqrt(variance) if count > 1 else float('nan')
         window = context.window()
         yield Row(window.start, key, count, mean, stddev)
+
 
 def main():
     env = StreamExecutionEnvironment.get_execution_environment()
@@ -65,10 +61,10 @@ def main():
     # Schema di deserializzazione
     deserialization_schema = (JsonRowDeserializationSchema.Builder()
                               .type_info(Types.ROW_NAMED(
-        ["date", "serial_number", "model", "failure", "vault_id", "s9_power_on_hours", "s194_temperature_celsius"],
-        [Types.STRING(), Types.STRING(), Types.STRING(), Types.STRING(), Types.STRING(), Types.STRING(), Types.STRING()]
-    ))
-                              .build())
+                                ["date", "serial_number", "model", "failure", "vault_id", "s9_power_on_hours", "s194_temperature_celsius"],
+                                [Types.STRING(), Types.STRING(), Types.STRING(), Types.BOOLEAN(), Types.INT(), Types.FLOAT(), Types.FLOAT()]
+                              )
+    ).build())
 
     # Configurazione del consumatore Kafka
     kafka_consumer = FlinkKafkaConsumer(
@@ -117,12 +113,13 @@ def main():
                           )
 
     filtered_stream = (kafka_stream
-                       .filter(lambda x: 1000 <= int(x['vault_id']) <= 1020)
-                       .assign_timestamps_and_watermarks(watermark_strategy))
+                       .filter(lambda x: 1000 <= x['vault_id'] <= 1020)
+                       .assign_timestamps_and_watermarks(watermark_strategy)
+                       .key_by(lambda x: x['vault_id'])
+                       )
 
     # Finestra di 1 giorno
     windowed_stream_1d = (filtered_stream
-                          .key_by(lambda x: x['vault_id'])
                           .window(TumblingEventTimeWindows.of(Time.days(1)))
                           .aggregate(TemperatureAggregate(), ComputeStats()))
 
@@ -130,7 +127,6 @@ def main():
 
     # Finestra di 3 giorni
     windowed_stream_3d = (filtered_stream
-                          .key_by(lambda x: x['vault_id'])
                           .window(TumblingEventTimeWindows.of(Time.days(3)))
                           .aggregate(TemperatureAggregate(), ComputeStats()))
 
@@ -138,14 +134,14 @@ def main():
 
     # Finestra globale
     windowed_stream_global = (filtered_stream
-                              .key_by(lambda x: x['vault_id'])
                               .window(GlobalWindows.create())
-                              #.trigger(CountTrigger.of(1))
+                              .trigger(CountTrigger.of(1))
                               .aggregate(TemperatureAggregate(), ComputeStats()))
 
     windowed_stream_global.add_sink(kafka_producer_global)
 
     env.execute("Flink Kafka Job Test")
+
 
 if __name__ == '__main__':
     main()

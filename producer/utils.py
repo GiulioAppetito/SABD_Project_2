@@ -5,10 +5,10 @@ def parse_row(row):
         "date": row[0],
         "serial_number": row[1],
         "model": row[2],
-        "failure": row[3],
-        "vault_id": row[4],
-        "s9_power_on_hours": row[12],
-        "s194_temperature_celsius": row[25] if row[25] else None
+        "failure": bool(row[3]),
+        "vault_id": int(row[4]),
+        "s9_power_on_hours": float(row[12]),
+        "s194_temperature_celsius": float(row[25]) if row[25] else None
     }
     return preprocessed_row
 
