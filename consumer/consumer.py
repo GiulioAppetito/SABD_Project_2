@@ -9,6 +9,7 @@ from kafka.errors import KafkaError
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+
 class KafkaQueryConsumer:
     def __init__(self, bootstrap_servers, group_id, output_dir, max_retries=10, retry_delay=5):
         self.bootstrap_servers = bootstrap_servers
@@ -77,7 +78,7 @@ class KafkaQueryConsumer:
             os.makedirs(self.output_dir)
 
         topic_fieldnames = {
-            'filtered_hdd_events': ["vault_id", "s194_temperature_celsius"],
+            'filtered_hdd_events': ["window_start", "vault_id", "count", "mean", "stddev"],
             'query1_3d_results': ["ts", "vault_id", "count", "mean_s149", "stddev_s149"],
             'query1_global_results': ["ts", "vault_id", "count", "mean_s149", "stddev_s149"]
         }
@@ -93,6 +94,7 @@ class KafkaQueryConsumer:
 
         for thread in threads:
             thread.join()
+
 
 if __name__ == '__main__':
     # Consumer init
