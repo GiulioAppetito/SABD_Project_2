@@ -38,6 +38,7 @@ services:
       - kafka
     volumes:
       - ./producer/data:/home/producer/data
+      - ./producer/src:/home/producer/src
     networks:
       - project2_network
     entrypoint: ["tail","-f","/dev/null"]
@@ -60,6 +61,8 @@ services:
       - kafka
     networks:
       - project2_network
+    volumes:
+      - ./flink/src:/opt/flink/jobs/src
 
   flink-taskmanager:
     build:
@@ -77,9 +80,10 @@ services:
         jobmanager.rpc.address: jobmanager
         taskmanager.numberOfTaskSlots: 3
         taskmanager.memory.process.size: 2048m
-
     networks:
       - project2_network
+    volumes:
+      - ./flink/src:/opt/flink/jobs/src
 
   prometheus:
     image: prom/prometheus:latest
@@ -100,6 +104,7 @@ services:
     build: ./consumer
     volumes:
       - ./Results:/app/Results
+      - ./consumer/src:/app/src
     depends_on:
       - kafka
     networks:

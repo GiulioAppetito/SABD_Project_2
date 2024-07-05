@@ -1,4 +1,3 @@
-import datetime
 import logging
 from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.datastream.connectors.kafka import FlinkKafkaConsumer, FlinkKafkaProducer
@@ -6,17 +5,15 @@ from pyflink.datastream.formats.json import JsonRowDeserializationSchema, JsonRo
 from pyflink.common.typeinfo import Types
 from pyflink.common import Row
 from pyflink.common import WatermarkStrategy
-from pyflink.common.watermark_strategy import TimestampAssigner
-from pyflink.datastream.window import TumblingEventTimeWindows, Time, CountWindow
+from pyflink.datastream.window import TumblingEventTimeWindows, Time, SlidingEventTimeWindows
 from pyflink.datastream.functions import AggregateFunction, ProcessWindowFunction
-from pyflink.datastream.state import ValueStateDescriptor
 from pyflink.datastream.window import TimeWindow
 import math
 from typing import Iterable, Tuple
+from utils.Utils import MyTimestampAssigner
 
 # Configura il logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
 
 # Funzioni update e finalize
 def update(existing_aggregate, new_value):
@@ -28,7 +25,6 @@ def update(existing_aggregate, new_value):
     M2 += delta * delta2
     return (count, mean, M2)
 
-
 def finalize(existing_aggregate):
     (count, mean, M2) = existing_aggregate
     if count < 2:
@@ -36,13 +32,6 @@ def finalize(existing_aggregate):
     else:
         (mean, variance, sample_variance) = (mean, M2 / count, M2 / (count - 1))
         return (mean, variance, sample_variance)
-
-
-class MyTimestampAssigner(TimestampAssigner):
-    def extract_timestamp(self, value, record_timestamp):
-        logging.info("sono il log value.data", value)
-        return datetime.datetime.strptime(value.date, "%Y-%m-%dT%H:%M:%S.%f").timestamp() * 1000
-
 
 class TemperatureAggregate(AggregateFunction):
     def create_accumulator(self):
@@ -165,7 +154,7 @@ def main():
 
     # Apply a tumbling window of 3 minutes for temperature aggregation
     windowed_stream_3d = (filtered_stream
-                          .window(TumblingEventTimeWindows.of(Time.days(3)))
+                          .window(SlidingEventTimeWindows.of(Time.days(3), Time.days(1)))
                           .aggregate(TemperatureAggregate(), ComputeStats(), output_type=Types.ROW_NAMED(
         ["ts", "vault_id", "count", "mean_s194", "stddev_s194"],
         [Types.LONG(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT()]))

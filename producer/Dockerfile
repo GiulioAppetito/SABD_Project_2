@@ -10,9 +10,5 @@ WORKDIR /home/producer
 COPY config/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copia il codice sorgente
-COPY producer.py .
-COPY utils.py .
-
-# Copia i dati
-COPY data /home/producer/data
+# Expose la directory src
+VOLUME ["/home/producer/src"]

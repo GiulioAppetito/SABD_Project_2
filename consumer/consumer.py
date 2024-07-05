@@ -18,6 +18,7 @@ class KafkaQueryConsumer:
         self.output_dir = output_dir
         self.max_retries = max_retries
         self.retry_delay = retry_delay
+        logging.info("Consumer is alive. Ready to consume...")
 
     def create_consumer(self, topic):
         for attempt in range(self.max_retries):
@@ -60,7 +61,7 @@ class KafkaQueryConsumer:
 
             for message in kafka_consumer:
                 record = message.value
-                logging.info(f"Consumer received this record from the topic {topic}: {record}")
+                logging.info(f"Consumer received a record from the topic {topic}: {record}")
                 rows.append(record)
                 if rows:
                     self.write_csv_file(csv_file_path, fieldnames, rows, write_header)
@@ -91,13 +92,21 @@ class KafkaQueryConsumer:
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
 
+        output_attributes_q2 = ["ts"]
+        for i in range(10):
+            output_attributes_q2.extend([f"vault_id{i + 1}", f"failures{i + 1}", f"failed_disks{i + 1}"])
+
         topic_fieldnames = {
             'query1_1d_results': ["ts", "vault_id", "count", "mean_s194", "stddev_s194"],
             'query1_3d_results': ["ts", "vault_id", "count", "mean_s194", "stddev_s194"],
-            'query1_all_results': ["ts", "vault_id", "count", "mean_s194", "stddev_s194"]
+            'query1_all_results': ["ts", "vault_id", "count", "mean_s194", "stddev_s194"],
+            'query2_1d_results': output_attributes_q2,
+            'query2_3d_results': output_attributes_q2,
+            'query2_all_results': output_attributes_q2
         }
 
-        topics_to_consume = ['query1_1d_results', 'query1_3d_results', 'query1_all_results']
+        topics_to_consume = ['query1_1d_results', 'query1_3d_results', 'query1_all_results',
+                             'query2_1d_results', 'query2_3d_results', 'query2_all_results']
 
         threads = []
         for topic in topics_to_consume:
