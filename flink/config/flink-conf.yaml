@@ -1,6 +1,6 @@
-jobmanager.memory.process.size: 4096m
-taskmanager.memory.process.size: 4096m
+jobmanager.memory.process.size: 1024m
+taskmanager.memory.process.size: 1024m
 taskmanager.numberOfTaskSlots: 2
 
-metrics.reporters: prom
+metrics.reporters.prom.port: 9249
 metrics.reporter.prom.class: org.apache.flink.metrics.prometheus.PrometheusReporter

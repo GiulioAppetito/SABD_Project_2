@@ -7,11 +7,13 @@ from pyflink.common import Row
 from pyflink.common import WatermarkStrategy
 from pyflink.datastream.window import TumblingEventTimeWindows, Time, SlidingEventTimeWindows
 
-from utils.q2_functions import VaultFailuresPerDayReduceFunction, VaultFailuresAggregateFunction,VaultFailuresProcessFunction
+from utils.q2_functions import VaultFailuresPerDayReduceFunction, VaultFailuresAggregateFunction, \
+    VaultFailuresProcessFunction
 from utils.utils import MyTimestampAssigner
 
 # Configura il logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
 
 def main():
     logging.info("Starting Flink job")
@@ -48,10 +50,9 @@ def main():
         output_attributes.extend([f"vault_id{i + 1}", f"failures{i + 1}", f"failed_disks{i + 1}"])
     output_types = [Types.LONG()] + [Types.INT(), Types.INT(), Types.LIST(Types.STRING())] * 10
 
-
     serialization_schema = JsonRowSerializationSchema.builder().with_type_info(
-            Types.ROW_NAMED(output_attributes, output_types)
-        ).build()
+        Types.ROW_NAMED(output_attributes, output_types)
+    ).build()
 
     kafka_producer_1d = FlinkKafkaProducer(
         topic=kafka_sink_topic_1d,
@@ -74,8 +75,8 @@ def main():
     kafka_stream = env.add_source(kafka_consumer)
 
     partial_stream = (kafka_stream
-                      .filter(lambda x: x['failure'] is True)
                       .assign_timestamps_and_watermarks(watermark_strategy)
+                      .filter(lambda x: x['failure'] is True)
                       .map(
         lambda x: Row(vault_id=x['vault_id'], failures_count=1, failed_disks=[f"{x['model']},{x['serial_number']}"]),
         output_type=Types.ROW_NAMED(
@@ -88,10 +89,10 @@ def main():
                       )
 
     windowed_stream_1d = (partial_stream
-                       .window_all(TumblingEventTimeWindows.of(Time.days(1)))
-                       .aggregate(VaultFailuresAggregateFunction(), VaultFailuresProcessFunction(),
-                                  output_type=Types.ROW_NAMED(output_attributes,output_types))
-                       )
+                          .window_all(TumblingEventTimeWindows.of(Time.days(1)))
+                          .aggregate(VaultFailuresAggregateFunction(), VaultFailuresProcessFunction(),
+                                     output_type=Types.ROW_NAMED(output_attributes, output_types))
+                          )
     windowed_stream_1d.add_sink(kafka_producer_1d)
 
     windowed_stream_3d = (partial_stream
@@ -102,10 +103,10 @@ def main():
     windowed_stream_3d.add_sink(kafka_producer_3d)
 
     windowed_stream_all = (partial_stream
-                          .window_all(TumblingEventTimeWindows.of(Time.days(21)))
-                          .aggregate(VaultFailuresAggregateFunction(), VaultFailuresProcessFunction(),
-                                     output_type=Types.ROW_NAMED(output_attributes, output_types))
-                          )
+                           .window_all(TumblingEventTimeWindows.of(Time.days(21)))
+                           .aggregate(VaultFailuresAggregateFunction(), VaultFailuresProcessFunction(),
+                                      output_type=Types.ROW_NAMED(output_attributes, output_types))
+                           )
     windowed_stream_all.add_sink(kafka_producer_all)
 
     env.execute("Flink Job Q2")

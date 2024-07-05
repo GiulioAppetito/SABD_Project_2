@@ -6,7 +6,7 @@ from pyflink.common.typeinfo import Types
 from pyflink.common import Row
 from pyflink.common import WatermarkStrategy
 from pyflink.datastream.window import TumblingEventTimeWindows, Time, SlidingEventTimeWindows
-from utils.q1_functions import TemperatureAggregate, ComputeStats
+from utils.q1_functions import TemperatureAggregateFunction, TemperatureProcessFunction
 from utils.utils import MyTimestampAssigner
 
 # Configura il logging
@@ -73,38 +73,38 @@ def main():
 
     # Filtered stream before windows
     filtered_stream = (kafka_stream
-                       .filter(lambda x: 1000 <= x.vault_id <= 1020)
                        .assign_timestamps_and_watermarks(watermark_strategy)
+                       .filter(lambda x: 1000 <= x.vault_id <= 1020)
                        .map(
-        lambda x: Row(date=x.date, vault_id=x.vault_id, s194_temperature_celsius=x.s194_temperature_celsius),
-        Types.ROW_NAMED(["date", "vault_id", "s194_temperature_celsius"], [Types.STRING(), Types.INT(), Types.FLOAT()]))
+                            lambda x: Row(date=x.date, vault_id=x.vault_id, s194_temperature_celsius=x.s194_temperature_celsius),
+                            Types.ROW_NAMED(["date", "vault_id", "s194_temperature_celsius"], [Types.STRING(), Types.INT(), Types.FLOAT()]))
                        .key_by(lambda x: x.vault_id)
                        )
 
     # Apply a tumbling window of 1 minute for temperature aggregation
     windowed_stream_1d = (filtered_stream
                           .window(TumblingEventTimeWindows.of(Time.days(1)))
-                          .aggregate(TemperatureAggregate(), ComputeStats(), output_type=Types.ROW_NAMED(
-        ["ts", "vault_id", "count", "mean_s194", "stddev_s194"],
-        [Types.LONG(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT()]))
+                          .aggregate(TemperatureAggregateFunction(), TemperatureProcessFunction(), output_type=Types.ROW_NAMED(
+                            ["ts", "vault_id", "count", "mean_s194", "stddev_s194"],
+                            [Types.LONG(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT()]))
                           )
     windowed_stream_1d.add_sink(kafka_producer_1d)
 
     # Apply a tumbling window of 3 minutes for temperature aggregation
     windowed_stream_3d = (filtered_stream
                           .window(SlidingEventTimeWindows.of(Time.days(3), Time.days(1)))
-                          .aggregate(TemperatureAggregate(), ComputeStats(), output_type=Types.ROW_NAMED(
-        ["ts", "vault_id", "count", "mean_s194", "stddev_s194"],
-        [Types.LONG(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT()]))
+                          .aggregate(TemperatureAggregateFunction(), TemperatureProcessFunction(), output_type=Types.ROW_NAMED(
+                            ["ts", "vault_id", "count", "mean_s194", "stddev_s194"],
+                            [Types.LONG(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT()]))
                           )
     windowed_stream_3d.add_sink(kafka_producer_3d)
 
     # Apply a global window for temperature aggregation
     windowed_stream_all = (filtered_stream
                            .window(TumblingEventTimeWindows.of(Time.days(22)))
-                           .aggregate(TemperatureAggregate(), ComputeStats(), output_type=Types.ROW_NAMED(
-        ["ts", "vault_id", "count", "mean_s194", "stddev_s194"],
-        [Types.LONG(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT()]))
+                           .aggregate(TemperatureAggregateFunction(), TemperatureProcessFunction(), output_type=Types.ROW_NAMED(
+                            ["ts", "vault_id", "count", "mean_s194", "stddev_s194"],
+                            [Types.LONG(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT()]))
                            )
     windowed_stream_all.add_sink(kafka_producer_all)
 

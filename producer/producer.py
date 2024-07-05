@@ -5,12 +5,16 @@ from kafka import KafkaProducer
 import os
 from datetime import datetime
 from utils import parse_row, scale_interval
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Configuration
-KAFKA_BROKER = os.getenv('KAFKA_BROKER', 'kafka:9092')
-TOPIC_NAME = os.getenv('TOPIC_NAME', 'hdd_events')
-CSV_FILE_PATH = '/home/producer/data/first_50_rows_per_date.csv'
-SCALE_FACTOR = 3600  # 1 hour becomes 1 second
+KAFKA_BROKER = os.getenv('KAFKA_BROKER')
+TOPIC_NAME = os.getenv('TOPIC_NAME')
+CSV_FILE_PATH = os.getenv('CSV_FILE_PATH')
+SCALE_FACTOR = int(os.getenv('SCALE_FACTOR'))
 
 # Create a Kafka producer
 producer = KafkaProducer(

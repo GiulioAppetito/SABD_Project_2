@@ -52,11 +52,11 @@ services:
     ports:
       - "8081:8081"
       - "6123:6123"
+      - "9249:9249"
     environment:
       - |
         FLINK_PROPERTIES=
         jobmanager.rpc.address: jobmanager
-        jobmanager.memory.process.size: 2048m
     depends_on:
       - kafka
     networks:
@@ -72,14 +72,13 @@ services:
     hostname: taskmanager
     ports:
       - "8082:8081"
+      - "9249:9249"
     depends_on:
       - flink-jobmanager
     environment:
       - |
         FLINK_PROPERTIES=
         jobmanager.rpc.address: jobmanager
-        taskmanager.numberOfTaskSlots: 3
-        taskmanager.memory.process.size: 2048m
     networks:
       - project2_network
     volumes:

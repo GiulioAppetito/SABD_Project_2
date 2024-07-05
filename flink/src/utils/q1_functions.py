@@ -6,7 +6,7 @@ from utils.welford import update, finalize
 from pyflink.common import Row
 
 
-class TemperatureAggregate(AggregateFunction):
+class TemperatureAggregateFunction(AggregateFunction):
     def create_accumulator(self):
         return 0, 0.0, 0.0  # count, mean, M2
 
@@ -28,7 +28,7 @@ class TemperatureAggregate(AggregateFunction):
         return count, mean, M2
 
 
-class ComputeStats(ProcessWindowFunction):
+class TemperatureProcessFunction(ProcessWindowFunction):
     def process(
             self,
             key: int,
