@@ -39,7 +39,7 @@ def main():
             if previous_timestamp:
                 interval = (current_timestamp - previous_timestamp).total_seconds()
                 scaled_interval = scale_interval(interval, SCALE_FACTOR)
-                #time.sleep(scaled_interval)
+                time.sleep(scaled_interval)
 
             preprocessed_row = parse_row(row)
 
