@@ -78,11 +78,11 @@ def main():
                       .assign_timestamps_and_watermarks(watermark_strategy)
                       .filter(lambda x: x['failure'] is True)
                       .map(
-        lambda x: Row(vault_id=x['vault_id'], failures_count=1, failed_disks=[f"{x['model']},{x['serial_number']}"]),
-        output_type=Types.ROW_NAMED(
-            ["vault_id", "failures_count", "failed_disks"],
-            [Types.INT(), Types.INT(), Types.LIST(Types.STRING())]
-        ))
+                        lambda x: Row(vault_id=x['vault_id'], date=x['date'], failures_count=1, failed_disks=[f"{x['model']},{x['serial_number']}"]),
+                        output_type=Types.ROW_NAMED(
+                            ["vault_id", "date", "failures_count", "failed_disks"],
+                            [Types.INT(), Types.STRING(), Types.INT(), Types.LIST(Types.STRING())]
+                        ))
                       .key_by(lambda x: x['vault_id'])
                       .window(TumblingEventTimeWindows.of(Time.days(1)))
                       .reduce(VaultFailuresPerDayReduceFunction())
@@ -96,14 +96,14 @@ def main():
     windowed_stream_1d.add_sink(kafka_producer_1d)
 
     windowed_stream_3d = (partial_stream
-                          .window_all(SlidingEventTimeWindows.of(Time.days(3), Time.days(1)))
+                          .window_all(TumblingEventTimeWindows.of(Time.days(3)))
                           .aggregate(VaultFailuresAggregateFunction(), VaultFailuresProcessFunction(),
                                      output_type=Types.ROW_NAMED(output_attributes, output_types))
                           )
     windowed_stream_3d.add_sink(kafka_producer_3d)
 
     windowed_stream_all = (partial_stream
-                           .window_all(TumblingEventTimeWindows.of(Time.days(21)))
+                           .window_all(TumblingEventTimeWindows.of(Time.days(23)))
                            .aggregate(VaultFailuresAggregateFunction(), VaultFailuresProcessFunction(),
                                       output_type=Types.ROW_NAMED(output_attributes, output_types))
                            )

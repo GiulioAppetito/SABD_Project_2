@@ -92,7 +92,7 @@ def main():
 
     # Apply a tumbling window of 3 minutes for temperature aggregation
     windowed_stream_3d = (filtered_stream
-                          .window(SlidingEventTimeWindows.of(Time.days(3), Time.days(1)))
+                          .window(TumblingEventTimeWindows.of(Time.days(3)))
                           .aggregate(TemperatureAggregateFunction(), TemperatureProcessFunction(), output_type=Types.ROW_NAMED(
                             ["ts", "vault_id", "count", "mean_s194", "stddev_s194"],
                             [Types.LONG(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT()]))
@@ -101,7 +101,7 @@ def main():
 
     # Apply a global window for temperature aggregation
     windowed_stream_all = (filtered_stream
-                           .window(TumblingEventTimeWindows.of(Time.days(22)))
+                           .window(TumblingEventTimeWindows.of(Time.days(23)))
                            .aggregate(TemperatureAggregateFunction(), TemperatureProcessFunction(), output_type=Types.ROW_NAMED(
                             ["ts", "vault_id", "count", "mean_s194", "stddev_s194"],
                             [Types.LONG(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT()]))

@@ -52,7 +52,7 @@ services:
     ports:
       - "8081:8081"
       - "6123:6123"
-      - "9249:9249"
+      - "9250:9249"
     environment:
       - |
         FLINK_PROPERTIES=
@@ -72,7 +72,7 @@ services:
     hostname: taskmanager
     ports:
       - "8082:8081"
-      - "9249:9249"
+      - "9251:9249"
     depends_on:
       - flink-jobmanager
     environment:
