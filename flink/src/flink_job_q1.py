@@ -1,4 +1,6 @@
 import logging
+import sys
+
 from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.datastream.connectors.kafka import FlinkKafkaConsumer, FlinkKafkaProducer
 from pyflink.datastream.formats.json import JsonRowDeserializationSchema, JsonRowSerializationSchema
@@ -13,7 +15,13 @@ from utils.utils import MyTimestampAssigner
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def main():
-    logging.info("Starting Flink job")
+
+    if len(sys.argv) < 2:
+        print("Usage: python flink_job_q1.py <window_lenght>")
+        print("<window_lenght>: one between '1d', '3d', 'all', 'all_three'")
+    window_lenght = sys.argv[1]
+
+    logging.info(f"Starting Flink job 1 with this window: {window_lenght}")
     env = StreamExecutionEnvironment.get_execution_environment()
     env.set_parallelism(1)
     env.add_jars("file:///opt/flink/lib/flink-sql-connector-kafka-1.17.1.jar")
@@ -80,33 +88,35 @@ def main():
                             Types.ROW_NAMED(["date", "vault_id", "s194_temperature_celsius"], [Types.STRING(), Types.INT(), Types.FLOAT()]))
                        .key_by(lambda x: x.vault_id)
                        )
+    if window_lenght in ('1d', 'all_three'):
+        # Apply a tumbling window of 1 day
+        windowed_stream_1d = (filtered_stream
+                              .window(TumblingEventTimeWindows.of(Time.days(1)))
+                              .aggregate(TemperatureAggregateFunction(), TemperatureProcessFunction(), output_type=Types.ROW_NAMED(
+                                ["ts", "vault_id", "count", "mean_s194", "stddev_s194"],
+                                [Types.LONG(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT()]))
+                              )
+        windowed_stream_1d.add_sink(kafka_producer_1d)
 
-    # Apply a tumbling window of 1 minute for temperature aggregation
-    windowed_stream_1d = (filtered_stream
-                          .window(TumblingEventTimeWindows.of(Time.days(1)))
-                          .aggregate(TemperatureAggregateFunction(), TemperatureProcessFunction(), output_type=Types.ROW_NAMED(
-                            ["ts", "vault_id", "count", "mean_s194", "stddev_s194"],
-                            [Types.LONG(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT()]))
-                          )
-    windowed_stream_1d.add_sink(kafka_producer_1d)
+    if window_lenght in ('3d', 'all_three'):
+        # Apply a tumbling window of 3 days
+        windowed_stream_3d = (filtered_stream
+                              .window(TumblingEventTimeWindows.of(Time.days(3)))
+                              .aggregate(TemperatureAggregateFunction(), TemperatureProcessFunction(), output_type=Types.ROW_NAMED(
+                                ["ts", "vault_id", "count", "mean_s194", "stddev_s194"],
+                                [Types.LONG(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT()]))
+                              )
+        windowed_stream_3d.add_sink(kafka_producer_3d)
 
-    # Apply a tumbling window of 3 minutes for temperature aggregation
-    windowed_stream_3d = (filtered_stream
-                          .window(TumblingEventTimeWindows.of(Time.days(3)))
-                          .aggregate(TemperatureAggregateFunction(), TemperatureProcessFunction(), output_type=Types.ROW_NAMED(
-                            ["ts", "vault_id", "count", "mean_s194", "stddev_s194"],
-                            [Types.LONG(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT()]))
-                          )
-    windowed_stream_3d.add_sink(kafka_producer_3d)
-
-    # Apply a global window for temperature aggregation
-    windowed_stream_all = (filtered_stream
-                           .window(TumblingEventTimeWindows.of(Time.days(23)))
-                           .aggregate(TemperatureAggregateFunction(), TemperatureProcessFunction(), output_type=Types.ROW_NAMED(
-                            ["ts", "vault_id", "count", "mean_s194", "stddev_s194"],
-                            [Types.LONG(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT()]))
-                           )
-    windowed_stream_all.add_sink(kafka_producer_all)
+    if window_lenght in ('all', 'all_three'):
+        # Apply a global window of 23 days
+        windowed_stream_all = (filtered_stream
+                               .window(TumblingEventTimeWindows.of(Time.days(23)))
+                               .aggregate(TemperatureAggregateFunction(), TemperatureProcessFunction(), output_type=Types.ROW_NAMED(
+                                ["ts", "vault_id", "count", "mean_s194", "stddev_s194"],
+                                [Types.LONG(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT()]))
+                               )
+        windowed_stream_all.add_sink(kafka_producer_all)
 
     env.execute("Flink Job Q1")
 

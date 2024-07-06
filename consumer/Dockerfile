@@ -9,7 +9,4 @@ COPY config/requirements.txt .
 RUN pip install --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Expose la directory src
-VOLUME ["/app/src"]
-
-CMD ["python", "consumer.py"]
+ENTRYPOINT ["tail", "-f", "/dev/null"]

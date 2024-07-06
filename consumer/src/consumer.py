@@ -2,29 +2,41 @@ import os
 import json
 import csv
 import logging
-import time
-from threading import Thread
+import sys
 from kafka import KafkaConsumer
-from kafka.errors import KafkaError
 import shutil
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-
 class KafkaQueryConsumer:
-    def __init__(self, bootstrap_servers, group_id, output_dir, max_retries=10, retry_delay=10):
+    def __init__(self, bootstrap_servers, group_id, output_dir, topics, max_retries=10, retry_delay=10):
         self.bootstrap_servers = bootstrap_servers
         self.group_id = group_id
         self.output_dir = output_dir
+        self.topics = topics
         self.max_retries = max_retries
         self.retry_delay = retry_delay
+        self.topic_fieldnames = {
+            'query1_1d_results': ["ts", "vault_id", "count", "mean_s194", "stddev_s194"],
+            'query1_3d_results': ["ts", "vault_id", "count", "mean_s194", "stddev_s194"],
+            'query1_all_results': ["ts", "vault_id", "count", "mean_s194", "stddev_s194"],
+            'query2_1d_results': self.get_output_attributes_q2(),
+            'query2_3d_results': self.get_output_attributes_q2(),
+            'query2_all_results': self.get_output_attributes_q2()
+        }
         logging.info("Consumer is alive. Ready to consume...")
 
-    def create_consumer(self, topic):
+    def get_output_attributes_q2(self):
+        output_attributes_q2 = ["ts"]
+        for i in range(10):
+            output_attributes_q2.extend([f"vault_id{i + 1}", f"failures{i + 1}", f"failed_disks{i + 1}"])
+        return output_attributes_q2
+
+    def create_consumer(self):
         for attempt in range(self.max_retries):
             try:
                 consumer = KafkaConsumer(
-                    topic,
+                    *self.topics,
                     bootstrap_servers=self.bootstrap_servers,
                     group_id=self.group_id,
                     auto_offset_reset='earliest',
@@ -47,82 +59,57 @@ class KafkaQueryConsumer:
             for row in rows:
                 writer.writerow(row)
 
-    def consume_results(self, topic, fieldnames):
-        # Ensure each topic writes to a separate file
-        csv_file_path = os.path.join(self.output_dir, f"{topic}.csv")
-        logging.info(f"Consumer open file for the topic: {topic}")
-
-        kafka_consumer = self.create_consumer(topic)
+    def consume_results(self):
+        kafka_consumer = self.create_consumer()
         try:
-            rows = []
-            write_header = True
-            if os.path.exists(csv_file_path):
-                write_header = False
+            while True:
+                for message in kafka_consumer:
+                    topic = message.topic
+                    record = message.value
+                    logging.info(f"Consumer received a record from the topic {topic}: {record}")
 
-            for message in kafka_consumer:
-                record = message.value
-                logging.info(f"Consumer received a record from the topic {topic}: {record}")
-                rows.append(record)
-                if rows:
-                    self.write_csv_file(csv_file_path, fieldnames, rows, write_header)
-                    write_header = False  # Header should be written only once
+                    fieldnames = self.topic_fieldnames[topic]
+                    csv_file_path = os.path.join(self.output_dir, f"{topic}.csv")
+
+                    self.write_csv_file(csv_file_path, fieldnames, [record], write_header=not os.path.exists(csv_file_path))
+                    logging.info(f"Wrote record to file {csv_file_path}")
                     kafka_consumer.commit()
-                    rows = []
         except Exception as e:
-            logging.error(f"Error while consuming messages from this topic {topic}: {e}")
+            logging.error(f"Error while consuming messages from Kafka: {e}")
         finally:
             kafka_consumer.close()
 
-    def empty_output_dir(self):
-        for filename in os.listdir(self.output_dir):
-            file_path = os.path.join(self.output_dir, filename)
-            try:
-                if os.path.isfile(file_path) or os.path.islink(file_path):
+    def empty_query_files(self):
+        for topic in self.topics:
+            file_path = os.path.join(self.output_dir, f"{topic}.csv")
+            if os.path.exists(file_path):
+                try:
                     os.unlink(file_path)
-                elif os.path.isdir(file_path):
-                    shutil.rmtree(file_path)
-            except Exception as e:
-                logging.error(f'Failed to delete {file_path} because of: {e}')
+                    logging.info(f'Deleted file {file_path}')
+                except Exception as e:
+                    logging.error(f'Failed to delete {file_path} because of: {e}')
 
     def run(self):
-        # Create the directory for output results
-        self.empty_output_dir()
-        if not os.path.exists(self.output_dir):
-            os.makedirs(self.output_dir)
+        # Empty the files related to the specific queries
+        self.empty_query_files()
 
-        output_attributes_q2 = ["ts"]
-        for i in range(10):
-            output_attributes_q2.extend([f"vault_id{i + 1}", f"failures{i + 1}", f"failed_disks{i + 1}"])
-
-        topic_fieldnames = {
-            'query1_1d_results': ["ts", "vault_id", "count", "mean_s194", "stddev_s194"],
-            'query1_3d_results': ["ts", "vault_id", "count", "mean_s194", "stddev_s194"],
-            'query1_all_results': ["ts", "vault_id", "count", "mean_s194", "stddev_s194"],
-            'query2_1d_results': output_attributes_q2,
-            'query2_3d_results': output_attributes_q2,
-            'query2_all_results': output_attributes_q2
-        }
-
-        topics_to_consume = ['query1_1d_results', 'query1_3d_results', 'query1_all_results',
-                             'query2_1d_results', 'query2_3d_results', 'query2_all_results']
-
-        threads = []
-        for topic in topics_to_consume:
-            fieldnames = topic_fieldnames[topic]
-            thread = Thread(target=self.consume_results, args=(topic, fieldnames))
-            threads.append(thread)
-            thread.start()
-
-        for thread in threads:
-            thread.join()
+        # Start consuming results
+        self.consume_results()
 
 
 if __name__ == '__main__':
     # Consumer init
+    topics = sys.argv[1:]
+    if not topics:
+        logging.error("No topics specified for the consumer")
+        sys.exit(1)
+
+    logging.info(f"Starting consumer for topics: {topics}")
     consumer = KafkaQueryConsumer(
         bootstrap_servers='kafka:9092',
         group_id='kafka_consumer_group',
-        output_dir='Results'
+        output_dir='Results',
+        topics=topics
     )
 
     consumer.run()
