@@ -9,44 +9,30 @@ The goal of this project is to answer several queries on telemetry data from app
 - [Docker Compose]
 
 ## Setup and Execution
-1. **Ensure Docker and Docker Compose are installed** on your system.
-2. **Create a `.env` file** in the root directory of the project if not already present, and define the necessary environment variables. Example:
-    ```
-    MY_VARIABLE=value
-    ANOTHER_VARIABLE=another_value
-    ```
-3. **Build and start the containers**:
-    Navigate to the project directory (where `docker-compose.yml` is located) and execute the following commands:
-
-    ```sh
-    docker-compose build
-    docker-compose up
-    ```
-
-4. **Navigate to the `scripts` directory**:
+1. **Navigate to the `scripts` directory**:
     ```sh
     cd scripts
     ```
 
-5. **Start the architecture**:
+2. **Start the architecture**:
     ```sh
     ./manage-architecture.sh --start
     ```
 
-6. **Start Flink job(s)**:
+3. **Start Flink job(s)**:
     ```sh
     ./start-flink.sh --numberQuery
     ```
 
-7. **Start the producer** to begin sending tuples to Kafka:
+4. **Start the producer** to begin sending tuples to Kafka:
     ```sh
     ./start-producer.sh
     ```
 
-8. **View the results**:
+5. **View the results**:
     The results will be saved in the `Results` directory.
 
-9. **Stop the architecture** when done:
+6. **Stop the architecture** when done:
     ```sh
     ./manage-architecture.sh --stop
     ```
