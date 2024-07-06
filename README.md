@@ -38,7 +38,7 @@ The goal of this project is to answer several queries on telemetry data from app
     ```
 
 ## Queries
-The following queries will be answered in streaming mode:
+The following queries will be answered:
 
 - **Query 1**: For vaults with IDs between 1000 and 1020, calculate the number of events, the average, and the standard deviation of the temperature measured on their hard disks.
 - **Query 2**: Calculate the real-time top 10 vaults with the highest number of failures within the same day.
