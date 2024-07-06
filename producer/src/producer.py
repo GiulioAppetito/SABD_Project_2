@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from utils import parse_row, scale_interval
 from dotenv import load_dotenv
 
+
 # Load environment variables from .env file
 load_dotenv()
 
