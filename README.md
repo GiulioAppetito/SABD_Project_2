@@ -9,17 +9,18 @@ The goal of this project is to answer several queries on telemetry data from app
 - [Docker Compose]
 
 ## Setup and Execution
-1. **Navigate to the `scripts` directory**:
+1.**Load dataset**: Move the dataset to `./producer/data` folder, and change the path (if necessary) in the `.env` file.
+2. **Navigate to the `scripts` directory**:
     ```sh
     cd scripts
     ```
 
-2. **Start the architecture**:
+3. **Start the architecture**:
     ```sh
     ./manage-architecture.sh --start
     ```
 
-3. **Start Flink job(s)**:
+4. **Start Flink job(s)**:
    Select between Query1, Query2 or both. You can choose to execute the selected query (queries) with a 1-day, 3-days, or global window (or all of them).
     ```sh
     ./start-flink.sh [--job1|--job2|--both] [--1d|--3d|--all|--all_three]
