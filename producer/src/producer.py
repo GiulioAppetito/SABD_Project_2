@@ -4,7 +4,7 @@ import time
 import json
 from kafka import KafkaProducer
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from utils import parse_row, scale_interval
 from dotenv import load_dotenv
 
@@ -54,6 +54,14 @@ def main():
                 previous_timestamp = current_timestamp
             except ValueError:
                 print("Date not in the right format.")
+    # Send one last row with a timestamp 7 days after the last row
+    if previous_timestamp:
+        dummy_timestamp = previous_timestamp + timedelta(days=7)
+        dummy_row = row.copy()
+        dummy_row[0] = dummy_timestamp.strftime("%Y-%m-%dT%H:%M:%S.%f")
+        preprocessed_dummy_row = parse_row(dummy_row)
+        send_to_kafka(preprocessed_dummy_row)
+        print(f"Sent final row with timestamp {dummy_row[0]}")
 
 
 if __name__ == '__main__':
