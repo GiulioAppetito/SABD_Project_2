@@ -5,8 +5,8 @@ The goal of this project is to answer several queries on telemetry data from app
 
 
 ## Requirements
-- [Docker](https://www.docker.com/)
-- [Docker Compose](https://docs.docker.com/compose/)
+- [Docker]
+- [Docker Compose]
 
 ## Setup and Execution
 1. **Ensure Docker and Docker Compose are installed** on your system.
@@ -56,15 +56,3 @@ The following queries will be answered in streaming mode:
 
 - **Query 1**: For vaults with IDs between 1000 and 1020, calculate the number of events, the average, and the standard deviation of the temperature measured on their hard disks.
 - **Query 2**: Calculate the real-time top 10 vaults with the highest number of failures within the same day.
-- **Query 3**: Calculate the minimum, 25th, 50th, 75th percentile, and maximum of the operating hours for hard disks in vaults with IDs between 1090 and 1120.
-
-## Additional Information
-- Ensure the consistency of time intervals by accelerating the dataset replay appropriately.
-- Results for each query must be saved in CSV format in the `Results` directory.
-- Evaluate latency and throughput of the queries during processing and include the analysis in the project report and presentation.
-
-## Authors
-- [Your Name](https://github.com/your-username)
-
-## License
-This project is licensed under the MIT License.
