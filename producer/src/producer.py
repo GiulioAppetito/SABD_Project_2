@@ -1,3 +1,4 @@
+
 import csv
 import time
 import json
@@ -38,18 +39,21 @@ def main():
 
         for row in csv_reader:
             # Check if temperature is not None
-            current_timestamp = datetime.strptime(row[0], "%Y-%m-%dT%H:%M:%S.%f")
+            try:
+                current_timestamp = datetime.strptime(row[0], "%Y-%m-%dT%H:%M:%S.%f")
 
-            if previous_timestamp:
-                interval = (current_timestamp - previous_timestamp).total_seconds()
-                scaled_interval = scale_interval(interval, SCALE_FACTOR)
-                time.sleep(scaled_interval)
+                if previous_timestamp:
+                    interval = (current_timestamp - previous_timestamp).total_seconds()
+                    scaled_interval = scale_interval(interval, SCALE_FACTOR)
+                    time.sleep(scaled_interval)
 
-            preprocessed_row = parse_row(row)
+                preprocessed_row = parse_row(row)
 
-            if preprocessed_row['s194_temperature_celsius'] is not None:
-                send_to_kafka(preprocessed_row)
-            previous_timestamp = current_timestamp
+                if preprocessed_row['s194_temperature_celsius'] is not None:
+                    send_to_kafka(preprocessed_row)
+                previous_timestamp = current_timestamp
+            except ValueError:
+                print("Date not in the right format.")
 
 
 if __name__ == '__main__':

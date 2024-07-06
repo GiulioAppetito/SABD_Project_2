@@ -39,6 +39,8 @@ services:
     volumes:
       - ./producer/data:/home/producer/data
       - ./producer/src:/home/producer/src
+    env_file:
+      - .env
     networks:
       - project2_network
     entrypoint: ["tail","-f","/dev/null"]
@@ -57,12 +59,16 @@ services:
       - |
         FLINK_PROPERTIES=
         jobmanager.rpc.address: jobmanager
+        metrics.reporters: prom
+        metrics.reporter.prom.factory.class: org.apache.flink.metrics.prometheus.PrometheusReporterFactory
+        metrics.reporter.prom.port: 9249
     depends_on:
       - kafka
     networks:
       - project2_network
     volumes:
       - ./flink/src:/opt/flink/jobs/src
+      - ./flink/config:/opt/flink/conf
 
   flink-taskmanager:
     build:
@@ -79,30 +85,48 @@ services:
       - |
         FLINK_PROPERTIES=
         jobmanager.rpc.address: jobmanager
+        metrics.reporters: prom
+        metrics.reporter.prom.factory.class: org.apache.flink.metrics.prometheus.PrometheusReporterFactory
+        metrics.reporter.prom.port: 9249
+        metrics.latency.interval: 1000
     networks:
       - project2_network
     volumes:
       - ./flink/src:/opt/flink/jobs/src
+      - ./flink/config:/opt/flink/conf
 
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus
     ports:
-      - "9090:9090"
+      - 9010:9010
+      - 9090:9090
+    networks:
+      - project2_network
+    tty: true
     volumes:
-      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus/prometheus.yml:/prometheus/prometheus.yml
+
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana
+    networks:
+      - project2_network
     ports:
       - "3000:3000"
     volumes:
-      - ./grafana:/var/lib/grafana
+      - ./grafana:/etc/grafana/provisioning/datasources
+    environment:
+      - auth.anonymous.enabled=true
+      - auth.anonymous.org_role = Admin
+    tty: true
 
   consumer:
     container_name: consumer
-    build: ./consumer
+    build:
+      context: ./consumer
+      dockerfile: Dockerfile
     volumes:
-      - ./Results:/app/Results
+      - ./Results:/app/src/Results
       - ./consumer/src:/app/src
     depends_on:
       - kafka

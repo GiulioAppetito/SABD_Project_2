@@ -108,7 +108,7 @@ def main():
                            )
     windowed_stream_all.add_sink(kafka_producer_all)
 
-    env.execute("Flink Kafka Filter and Forward Job")
+    env.execute("Flink Job Q1")
 
 
 if __name__ == '__main__':

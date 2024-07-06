@@ -1,5 +1,6 @@
 from datetime import datetime
 
+
 def parse_row(row):
     preprocessed_row = {
         "date": row[0],
@@ -12,5 +13,6 @@ def parse_row(row):
     }
     return preprocessed_row
 
+
 def scale_interval(interval, scale_factor):
-    return interval
+    return interval/scale_factor

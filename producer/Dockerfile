@@ -10,5 +10,3 @@ WORKDIR /home/producer
 COPY config/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Expose la directory src
-VOLUME ["/home/producer/src"]

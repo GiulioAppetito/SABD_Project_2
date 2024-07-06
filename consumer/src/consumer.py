@@ -68,8 +68,6 @@ class KafkaQueryConsumer:
                     write_header = False  # Header should be written only once
                     kafka_consumer.commit()
                     rows = []
-        except KeyboardInterrupt:
-            pass
         except Exception as e:
             logging.error(f"Error while consuming messages from this topic {topic}: {e}")
         finally:
@@ -84,7 +82,7 @@ class KafkaQueryConsumer:
                 elif os.path.isdir(file_path):
                     shutil.rmtree(file_path)
             except Exception as e:
-                logging.error(f'Failed to delete {file_path}. Reason: {e}')
+                logging.error(f'Failed to delete {file_path} because of: {e}')
 
     def run(self):
         # Create the directory for output results
