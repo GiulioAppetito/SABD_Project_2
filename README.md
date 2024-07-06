@@ -21,7 +21,7 @@ The goal of this project is to answer several queries on telemetry data from app
 
 3. **Start Flink job(s)**:
     ```sh
-    ./start-flink.sh --numberQuery
+    ./start-flink.sh [--job1|--job2|--both] [--1d|--3d|--all|--all_three]
     ```
 
 4. **Start the producer** to begin sending tuples to Kafka:
