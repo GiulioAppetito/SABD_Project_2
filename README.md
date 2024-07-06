@@ -20,19 +20,20 @@ The goal of this project is to answer several queries on telemetry data from app
     ```
 
 3. **Start Flink job(s)**:
+   Select between Query1, Query2 or both. You can choose to execute the selected query (queries) with a 1-day, 3-days, or global window (or all of them).
     ```sh
     ./start-flink.sh [--job1|--job2|--both] [--1d|--3d|--all|--all_three]
     ```
 
-4. **Start the producer** to begin sending tuples to Kafka:
+5. **Start the producer** to begin sending tuples to Kafka:
     ```sh
     ./start-producer.sh
     ```
 
-5. **View the results**:
+6. **View the results**:
     The results will be saved in the `Results` directory.
 
-6. **Stop the architecture** when done:
+7. **Stop the architecture** when done:
     ```sh
     ./manage-architecture.sh --stop
     ```
