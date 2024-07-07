@@ -3,6 +3,7 @@ import json
 import csv
 import logging
 import sys
+import time
 from kafka import KafkaConsumer
 import shutil
 
@@ -50,14 +51,13 @@ class KafkaQueryConsumer:
                 time.sleep(self.retry_delay)
         raise Exception("Failed to connect to Kafka broker after multiple attempts")
 
-    def write_csv_file(self, file_path, fieldnames, rows, write_header):
+    def write_csv_file(self, file_path, fieldnames, row, write_header):
         mode = 'a' if os.path.exists(file_path) else 'w'
         with open(file_path, mode, newline='') as csv_file:
             writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
             if write_header:
                 writer.writeheader()
-            for row in rows:
-                writer.writerow(row)
+            writer.writerow(row)
 
     def consume_results(self):
         kafka_consumer = self.create_consumer()
@@ -71,7 +71,7 @@ class KafkaQueryConsumer:
                     fieldnames = self.topic_fieldnames[topic]
                     csv_file_path = os.path.join(self.output_dir, f"{topic}.csv")
 
-                    self.write_csv_file(csv_file_path, fieldnames, [record], write_header=not os.path.exists(csv_file_path))
+                    self.write_csv_file(csv_file_path, fieldnames, record, write_header=not os.path.exists(csv_file_path))
                     logging.info(f"Wrote record to file {csv_file_path}")
                     kafka_consumer.commit()
         except Exception as e:
