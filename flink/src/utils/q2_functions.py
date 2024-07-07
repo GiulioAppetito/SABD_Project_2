@@ -17,10 +17,10 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 class VaultFailuresPerDayReduceFunction(ReduceFunction):
     def reduce(self, value1: Row, value2: Row) -> Row:
-        date: str = value1['date']
-        vault_id: int = value1['vault_id']
-        failures_count: int = value1['failures_count'] + value2['failures_count']
-        failed_disks: List[str] = value1['failed_disks'] + value2['failed_disks']
+        date = value1['date']
+        vault_id = value1['vault_id']
+        failures_count = value1['failures_count'] + value2['failures_count']
+        failed_disks = value1['failed_disks'] + value2['failed_disks']
         return Row(vault_id=vault_id, date=date, failures_count=failures_count, failed_disks=failed_disks)
 
 
@@ -29,18 +29,18 @@ class VaultFailuresAggregateFunction(AggregateFunction):
         return {}
 
     def add(self, value: Row, accumulator: Dict[Tuple[int, str], Tuple[int, List[str]]]) -> Dict[Tuple[int, str], Tuple[int, List[str]]]:
-        vault_id: int = value['vault_id']
-        date: str = value['date']
-        failures_count: int = value['failures_count']
-        failed_disks: List[str] = value['failed_disks']
-        key: Tuple[int, str] = (vault_id, date)
+        vault_id = value['vault_id']
+        date = value['date']
+        failures_count = value['failures_count']
+        failed_disks = value['failed_disks']
+        key = (vault_id, date)
 
         if key not in accumulator:
             accumulator[key] = (failures_count, failed_disks)
         else:
             current_failures, current_disks = accumulator[key]
-            new_failures: int = current_failures + failures_count
-            new_disks: List[str] = current_disks + failed_disks
+            new_failures = current_failures + failures_count
+            new_disks = current_disks + failed_disks
             accumulator[key] = (new_failures, new_disks)
 
         return accumulator
@@ -51,7 +51,7 @@ class VaultFailuresAggregateFunction(AggregateFunction):
             if vault_id not in max_failures_per_vault or failures_count > max_failures_per_vault[vault_id][0]:
                 max_failures_per_vault[vault_id] = (failures_count, failed_disks)
 
-        ranking: List[Tuple[int, Tuple[int, List[str]]]] = sorted(max_failures_per_vault.items(), key=lambda x: x[1][0], reverse=True)[:10]
+        ranking = sorted(max_failures_per_vault.items(), key=lambda x: x[1][0], reverse=True)[:10]
         return ranking
 
     def merge(self, acc1: Dict[Tuple[int, str], Tuple[int, List[str]]], acc2: Dict[Tuple[int, str], Tuple[int, List[str]]]) -> Dict[Tuple[int, str], Tuple[int, List[str]]]:
@@ -60,8 +60,8 @@ class VaultFailuresAggregateFunction(AggregateFunction):
                 acc1[key] = value
             else:
                 current_failures, current_disks = acc1[key]
-                new_failures: int = current_failures + value[0]
-                new_disks: List[str] = current_disks + value[1]
+                new_failures = current_failures + value[0]
+                new_disks = current_disks + value[1]
                 acc1[key] = (new_failures, new_disks)
         return acc1
 

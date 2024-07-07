@@ -8,7 +8,7 @@ from pyflink.common import Row
 
 class TemperatureAggregateFunction(AggregateFunction):
     def create_accumulator(self):
-        return 0, 0.0, 0.0  # count, mean, M2
+        return 0, 0.0, 0.0  # Count, Mean, M2
 
     def add(self, value: Row, accumulator: Tuple[int, float, float]) -> Tuple[int, float, float]:
         return update(accumulator, value.s194_temperature_celsius)
@@ -43,5 +43,4 @@ class TemperatureProcessFunction(ProcessWindowFunction):
 
         result = Row(ts=window.start, vault_id=key, count=count, mean_s194=mean, stddev_s194=stddev)
 
-        # Log the results before writing to Kafka
         yield result
