@@ -7,7 +7,7 @@ from pyflink.common import WatermarkStrategy
 from pyflink.datastream.window import TumblingEventTimeWindows, Time
 from typing import List, Tuple, Dict, Iterable
 from utils.q2_functions import VaultFailuresPerDayReduceFunction, FailuresAggregateFunction, \
-    TimestampForVaultsRanking, convert_to_row
+    VaultsRankingProcessFunction, convert_to_row
 from utils.utils import MyTimestampAssigner
 from pyflink.common import Row
 import sys
@@ -96,7 +96,7 @@ def main():
     if window_lenght in ('1d', 'all_three'):
         # Apply a tumbling window of 1 day
         windowed_stream_1d = partial_stream.window_all(TumblingEventTimeWindows.of(Time.days(1))).aggregate(
-            FailuresAggregateFunction(), TimestampForVaultsRanking()
+            FailuresAggregateFunction(), VaultsRankingProcessFunction()
         ).map(convert_to_row, output_type=Types.ROW_NAMED(output_attributes, output_types))
 
         windowed_stream_1d.add_sink(kafka_producer_1d)
@@ -104,7 +104,7 @@ def main():
     if window_lenght in ('3d', 'all_three'):
         # Apply a tumbling window of 3 days
         windowed_stream_3d = partial_stream.window_all(TumblingEventTimeWindows.of(Time.days(3))).aggregate(
-            FailuresAggregateFunction(), TimestampForVaultsRanking()
+            FailuresAggregateFunction(), VaultsRankingProcessFunction()
         ).map(convert_to_row, output_type=Types.ROW_NAMED(output_attributes, output_types))
 
         windowed_stream_3d.add_sink(kafka_producer_3d)
@@ -112,7 +112,7 @@ def main():
     if window_lenght in ('all', 'all_three'):
         # Apply a tumbling window of 23 days
         windowed_stream_all = partial_stream.window_all(TumblingEventTimeWindows.of(Time.days(23))).aggregate(
-            FailuresAggregateFunction(), TimestampForVaultsRanking()
+            FailuresAggregateFunction(), VaultsRankingProcessFunction()
         ).map(convert_to_row, output_type=Types.ROW_NAMED(output_attributes, output_types))
 
         windowed_stream_all.add_sink(kafka_producer_all)

@@ -68,7 +68,7 @@ class FailuresAggregateFunction(AggregateFunction):
 
 
 
-class TimestampForVaultsRanking(ProcessAllWindowFunction):
+class VaultsRankingProcessFunction(ProcessAllWindowFunction):
     def process(
             self,
             context: ProcessAllWindowFunction.Context,
