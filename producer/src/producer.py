@@ -1,5 +1,6 @@
 
 import csv
+import random
 import time
 import json
 from kafka import KafkaProducer
@@ -7,7 +8,7 @@ import os
 from datetime import datetime, timedelta
 from utils import parse_row, scale_interval
 from dotenv import load_dotenv
-
+import sys
 
 # Load environment variables from .env file
 load_dotenv()
@@ -32,6 +33,12 @@ def send_to_kafka(row):
 
 
 def main():
+    if len(sys.argv) < 2:
+        print("Usage: python producer.py <fast>")
+        print("<fast>: True (doesn't simulate time between tuples within same day) or False")
+        sys.exit(1)
+    fast = True if sys.argv[1] == "True" else False
+    window_length = sys.argv[1]
     with open(CSV_FILE_PATH, mode='r') as file:
         csv_reader = csv.reader(file)
         header = next(csv_reader)  # Skip the header row
@@ -46,7 +53,10 @@ def main():
                 if previous_timestamp:
                     interval = (current_timestamp - previous_timestamp).total_seconds()
                     scaled_interval = scale_interval(interval, SCALE_FACTOR)
-                    time.sleep(scaled_interval)
+                    if scaled_interval > 0:
+                        time.sleep(scaled_interval)
+                    if not fast:
+                        time.sleep(random.uniform(0, 0.1))
 
                 preprocessed_row = parse_row(row)
 
