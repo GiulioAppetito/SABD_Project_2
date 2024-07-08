@@ -17,10 +17,14 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 
 def main():
-    if len(sys.argv) < 2:
-        print("Usage: python flink_job_q1.py <window_lenght>")
-        print("<window_lenght>: one between '1d', '3d', 'all', 'all_three'")
-    window_lenght = sys.argv[1]
+    if len(sys.argv) < 3:
+        print("Usage: python flink_job_q2.py <window_length> <evaluate>")
+        print("<window_length>: one between '1d', '3d', 'all', 'all_three'")
+        print("<evaluate>: true or false")
+        sys.exit(1)
+
+    window_length = sys.argv[1]
+    evaluate = sys.argv[2].lower() == 'true'
 
     logging.info("Starting Flink job")
     env = StreamExecutionEnvironment.get_execution_environment()
@@ -93,31 +97,38 @@ def main():
                       .reduce(VaultFailuresPerDayReduceFunction())
                       )
 
-    if window_lenght in ('1d', 'all_three'):
+    if window_length in ('1d', 'all_three'):
         # Apply a tumbling window of 1 day
         windowed_stream_1d = partial_stream.window_all(TumblingEventTimeWindows.of(Time.days(1))).aggregate(
             FailuresAggregateFunction(), VaultsRankingProcessFunction()
         ).map(convert_to_row, output_type=Types.ROW_NAMED(output_attributes, output_types))
 
         windowed_stream_1d.add_sink(kafka_producer_1d)
+        if evaluate:
+            env.execute_async("Q2-1d")
 
-    if window_lenght in ('3d', 'all_three'):
+    if window_length in ('3d', 'all_three'):
         # Apply a tumbling window of 3 days
         windowed_stream_3d = partial_stream.window_all(TumblingEventTimeWindows.of(Time.days(3))).aggregate(
             FailuresAggregateFunction(), VaultsRankingProcessFunction()
         ).map(convert_to_row, output_type=Types.ROW_NAMED(output_attributes, output_types))
 
         windowed_stream_3d.add_sink(kafka_producer_3d)
+        if evaluate:
+            env.execute_async("Q2-3d")
 
-    if window_lenght in ('all', 'all_three'):
+    if window_length in ('all', 'all_three'):
         # Apply a tumbling window of 23 days
         windowed_stream_all = partial_stream.window_all(TumblingEventTimeWindows.of(Time.days(23))).aggregate(
             FailuresAggregateFunction(), VaultsRankingProcessFunction()
         ).map(convert_to_row, output_type=Types.ROW_NAMED(output_attributes, output_types))
 
         windowed_stream_all.add_sink(kafka_producer_all)
+        if evaluate:
+            env.execute_async("Q2-all")
 
-    env.execute("Flink Job Q2")
+    if not evaluate:
+        env.execute("Flink Job Q2")
 
 
 if __name__ == '__main__':
