@@ -21,7 +21,7 @@ The goal of this project is to answer several queries on telemetry data from app
     ./manage-architecture.sh --start
     ```
 
-5. **Start Flink job(s)**:
+5. **Start Flink job(s) and Consumer**:
    Select between Query1, Query2 or both. You can choose to execute the selected query (queries) with a 1-day, 3-days, or global window (or all of them).
     ```sh
     ./start-flink.sh [--job1|--job2|--both] [--1d|--3d|--all|--all_three]
