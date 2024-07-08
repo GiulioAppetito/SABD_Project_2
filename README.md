@@ -33,7 +33,7 @@ The goal of this project is to answer several queries on telemetry data from app
     ```
 
 7. **View the results**:
-    The results will be saved in the `Results` directory.
+    The results will be saved in the `Results` directory in .csv format.
 
 8. **Stop the architecture** when done:
     ```sh
