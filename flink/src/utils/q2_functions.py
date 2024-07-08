@@ -1,86 +1,95 @@
-import logging
-from pyflink.datastream import StreamExecutionEnvironment
-from pyflink.datastream.connectors.kafka import FlinkKafkaConsumer, FlinkKafkaProducer
-from pyflink.datastream.formats.json import JsonRowDeserializationSchema, JsonRowSerializationSchema
-from pyflink.common.typeinfo import Types
+from pyflink.datastream.functions import AggregateFunction, ProcessAllWindowFunction
 from pyflink.common import Row
-from pyflink.common import WatermarkStrategy
-from pyflink.datastream.window import TumblingEventTimeWindows, Time, SlidingEventTimeWindows
+from pyflink.datastream.functions import AggregateFunction, ProcessAllWindowFunction
+from typing import List, Tuple, Dict, Iterable
+import logging
 from pyflink.datastream.functions import AggregateFunction, ProcessAllWindowFunction, ReduceFunction
-from typing import List, Tuple, Iterable, Dict
-from utils.utils import MyTimestampAssigner
-from pyflink.datastream.window import TimeWindow
-
-# Configura il logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
 class VaultFailuresPerDayReduceFunction(ReduceFunction):
-    def reduce(self, value1: Row, value2: Row) -> Row:
-        date = value1['date']
-        vault_id = value1['vault_id']
-        failures_count = value1['failures_count'] + value2['failures_count']
-        failed_disks = value1['failed_disks'] + value2['failed_disks']
-        return Row(vault_id=vault_id, date=date, failures_count=failures_count, failed_disks=failed_disks)
+    def reduce(self, value1: Tuple[int, int, List[str]], value2: Tuple[int, int, List[str]]) -> Tuple[
+        int, int, List[str]]:
+        logging.info(f"Reducing: {value1} and {value2}")
+        vault_id = value1[0]
+        failures_count = value1[1] + value2[1]
+        failed_disks = value1[2] + value2[2]
+        result = (vault_id, failures_count, failed_disks)
+        logging.info(f"Reduced Result: {result}")
+        return result
 
 
-class VaultFailuresAggregateFunction(AggregateFunction):
-    def create_accumulator(self) -> Dict[Tuple[int, str], Tuple[int, List[str]]]:
-        return {}
+class FailuresAggregateFunction(AggregateFunction):
 
-    def add(self, value: Row, accumulator: Dict[Tuple[int, str], Tuple[int, List[str]]]) -> Dict[Tuple[int, str], Tuple[int, List[str]]]:
-        vault_id = value['vault_id']
-        date = value['date']
-        failures_count = value['failures_count']
-        failed_disks = value['failed_disks']
-        key = (vault_id, date)
+    def create_accumulator(self) -> List[Tuple[int, int, List[str]]]:
+        return []
 
-        if key not in accumulator:
-            accumulator[key] = (failures_count, failed_disks)
+    def add(self, value: Tuple[int, int, List[str]], ranking: List[Tuple[int, int, List[str]]]) -> List[Tuple[int, int, List[str]]]:
+        vault_id = value[0]
+        failures_count = value[1]
+        failed_disks = value[2]
+
+        # Check if the vault_id already exists in the ranking
+        for i, (v_id, f_count, f_disks) in enumerate(ranking):
+            if v_id == vault_id:
+                # Update the entry if the current failures_count is higher
+                if failures_count > f_count:
+                    ranking[i] = (vault_id, failures_count, failed_disks)
+                break
         else:
-            current_failures, current_disks = accumulator[key]
-            new_failures = current_failures + failures_count
-            new_disks = current_disks + failed_disks
-            accumulator[key] = (new_failures, new_disks)
+            # Add the new entry if vault_id is not found
+            ranking.append((vault_id, failures_count, failed_disks))
 
-        return accumulator
+        # Sort and keep top 10
+        ranking.sort(key=lambda x: x[1], reverse=True)
+        ranking = ranking[:10]
 
-    def get_result(self, accumulator: Dict[Tuple[int, str], Tuple[int, List[str]]]) -> List[Tuple[int, Tuple[int, List[str]]]]:
-        max_failures_per_vault: Dict[int, Tuple[int, List[str]]] = {}
-        for (vault_id, date), (failures_count, failed_disks) in accumulator.items():
-            if vault_id not in max_failures_per_vault or failures_count > max_failures_per_vault[vault_id][0]:
-                max_failures_per_vault[vault_id] = (failures_count, failed_disks)
-
-        ranking = sorted(max_failures_per_vault.items(), key=lambda x: x[1][0], reverse=True)[:10]
         return ranking
 
-    def merge(self, acc1: Dict[Tuple[int, str], Tuple[int, List[str]]], acc2: Dict[Tuple[int, str], Tuple[int, List[str]]]) -> Dict[Tuple[int, str], Tuple[int, List[str]]]:
-        for key, value in acc2.items():
-            if key not in acc1:
-                acc1[key] = value
+    def merge(self, ranking_a: List[Tuple[int, int, List[str]]], ranking_b: List[Tuple[int, int, List[str]]]) -> List[Tuple[int, int, List[str]]]:
+        combined_ranking = {vault_id: (failures_count, failed_disks) for vault_id, failures_count, failed_disks in ranking_a}
+
+        for vault_id, failures_count, failed_disks in ranking_b:
+            if vault_id in combined_ranking:
+                # Keep the entry with the maximum failures_count
+                if failures_count > combined_ranking[vault_id][0]:
+                    combined_ranking[vault_id] = (failures_count, failed_disks)
             else:
-                current_failures, current_disks = acc1[key]
-                new_failures = current_failures + value[0]
-                new_disks = current_disks + value[1]
-                acc1[key] = (new_failures, new_disks)
-        return acc1
+                combined_ranking[vault_id] = (failures_count, failed_disks)
+
+        # Convert back to list and sort
+        ranking = [(vault_id, data[0], data[1]) for vault_id, data in combined_ranking.items()]
+        ranking.sort(key=lambda x: x[1], reverse=True)
+        ranking = ranking[:10]
+
+        return ranking
+
+    def get_result(self, accumulator: List[Tuple[int, int, List[str]]]) -> List[Tuple[int, int, List[str]]]:
+        return accumulator
 
 
-class VaultFailuresProcessFunction(ProcessAllWindowFunction):
+
+class TimestampForVaultsRanking(ProcessAllWindowFunction):
     def process(
             self,
             context: ProcessAllWindowFunction.Context,
-            elements: Iterable[List[Tuple[int, Tuple[int, List[str]]]]],
-    ) -> Iterable[Row]:
-        ranking: List[Tuple[int, Tuple[int, List[str]]]] = next(iter(elements))
-        window: TimeWindow = context.window()
+            elements: Iterable[List[Tuple[int, int, List[str]]]],
+    ) -> Iterable[Tuple[int, List[Tuple[int, int, List[str]]]]]:
+        ranking = next(iter(elements))
+        window = context.window()
 
-        row_data: List = [window.start]
-        for i in range(10):
-            if i < len(ranking):
-                vault_id, (failures_count, failed_disks) = ranking[i]
-                row_data.extend([vault_id, failures_count, failed_disks])
-            else:
-                row_data.extend([None, None, None])
+        result_row = (window.start, ranking)
+        yield result_row
 
-        yield Row(*row_data)
+
+def convert_to_row(x):
+    ts, ranking = x
+    row_data = [ts]
+    for i in range(10):
+        if i < len(ranking):
+            vault_id, failures_count, failed_disks = ranking[i]
+            failed_disks_str = ', '.join(failed_disks)  # Convert list to comma-separated string without brackets
+            row_data.extend([vault_id, failures_count, failed_disks_str])
+        else:
+            row_data.extend([None, None, None])
+    return Row(*row_data)
+
