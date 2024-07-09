@@ -18,7 +18,7 @@ The goal of this project is to answer several queries on telemetry data from app
 
 4. **Start the architecture**:
     ```sh
-    ./manage-architecture.sh --start
+    ./setup-architecture.sh --start
     ```
 
 5. **Start Flink job(s) and Consumer**:
