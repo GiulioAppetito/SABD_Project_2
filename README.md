@@ -27,9 +27,9 @@ The goal of this project is to answer several queries on telemetry data from app
     ./start-flink.sh [--job1|--job2|--both] [--1d|--3d|--all|--all_three]
     ```
 
-6. **Start the producer** to begin sending tuples to Kafka:
+6. **Start the producer** to begin sending tuples to Kafka. If set to True, the producer goes 'fast', not waiting time between tuples within each day.
     ```sh
-    ./start-producer.sh
+    ./start-producer.sh [True|False]
     ```
 
 7. **View the results**:
