@@ -67,7 +67,7 @@ def main():
                 print("Date not in the right format.")
     # Send one last row with a timestamp 7 days after the last row
     if previous_timestamp:
-        dummy_timestamp = previous_timestamp + timedelta(days=1)
+        dummy_timestamp = previous_timestamp + timedelta(days=7)
         dummy_row = row.copy()
         dummy_row[0] = dummy_timestamp.strftime("%Y-%m-%dT%H:%M:%S.%f")
         preprocessed_dummy_row = parse_row(dummy_row)

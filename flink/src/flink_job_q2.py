@@ -30,6 +30,8 @@ def main():
     env = StreamExecutionEnvironment.get_execution_environment()
     env.set_parallelism(1)
     env.add_jars("file:///opt/flink/lib/flink-sql-connector-kafka-1.17.1.jar")
+    if (evaluate):
+        env.get_config().set_latency_tracking_interval(10)
 
     kafka_source_topic = 'hdd_events'
     kafka_consumer_group = 'flink_consumer_group'
