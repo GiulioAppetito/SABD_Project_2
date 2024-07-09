@@ -22,9 +22,9 @@ The goal of this project is to answer several queries on telemetry data from app
     ```
 
 5. **Start Flink job(s) and Consumer**:
-   Select between Query1, Query2 or both. You can choose to execute the selected query (queries) with a 1-day, 3-days, or global window (or all of them).
+   Select between Query1, Query2 or both. You can choose to execute the selected query (queries) with a 1-day, 3-days, or global window (or all of them); true or false is for evaluation; if set to true, an evaluation is run and LatencyTracking is activated.
     ```sh
-    ./start-flink.sh [--job1|--job2|--both] [--1d|--3d|--all|--all_three]
+    ./start-flink.sh [--job1|--job2|--both] [--1d|--3d|--all|--all_three] [true|false]
     ```
 
 6. **Start the producer** to begin sending tuples to Kafka. If set to True, the producer goes 'fast', not waiting time between tuples within each day.
